@@ -145,6 +145,15 @@ def main():
         action="store_true",
         help="index 里已有同 id 同版本的条目时跳过（幂等重跑用）",
     )
+    ap.add_argument(
+        "--force",
+        action="store_true",
+        help=(
+            "忽略 index 里已有的版本，强制重新打包并写索引。"
+            "用于「索引有条目但 Release 资产缺失」的修复（首次发布时 index.json "
+            "若已随仓库提交，正常流程会误判为已发布）"
+        ),
+    )
     args = ap.parse_args()
 
     os.makedirs(args.out, exist_ok=True)
@@ -191,17 +200,20 @@ def main():
 
         version = manifest["version"]
         prev = by_id.get(pid)
-        if prev and prev.get("version") == version and args.skip_existing:
-            print(f"跳过 {pid} v{version}：已存在")
-            os.remove(pkg_path)
-            continue
-        if prev and not version_gt(version, prev.get("version", "0")):
-            print(
-                f"跳过 {pid}：版本 {version} 不大于已发布的 {prev.get('version')}",
-                file=sys.stderr,
-            )
-            os.remove(pkg_path)
-            continue
+        if not args.force:
+            if prev and prev.get("version") == version and args.skip_existing:
+                print(f"跳过 {pid} v{version}：已存在")
+                os.remove(pkg_path)
+                continue
+            if prev and not version_gt(version, prev.get("version", "0")):
+                print(
+                    f"跳过 {pid}：版本 {version} 不大于已发布的 {prev.get('version')}",
+                    file=sys.stderr,
+                )
+                os.remove(pkg_path)
+                continue
+        elif prev and prev.get("version") == version:
+            print(f"强制重建 {pid} v{version}")
 
         tag = f"{args.tag_prefix}/{pid}-{version}"
         publisher = str(manifest.get("publisher", "")).strip()

@@ -32,10 +32,42 @@ jobs:
 
       - name: 打包 + 生成索引
         id: build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # index.json 里可能已经有条目、但对应的 Release 资产并不存在
+          # （首次提交 index 时就会这样）。逐条核对，缺资产的用 --force 重建。
+          FORCE=""
+          python - <<'PY' > /tmp/force-ids.txt
+          import json, os, subprocess, sys
+          if not os.path.isfile("index.json"):
+              sys.exit(0)
+          repo = os.environ.get("GITHUB_REPOSITORY", "")
+          for p in json.load(open("index.json", encoding="utf-8")).get("plugins", []):
+              tag = f"plugin/{p['id']}-{p['version']}"
+              r = subprocess.run(
+                  ["gh", "release", "view", tag, "-R", repo, "--json", "assets"],
+                  capture_output=True, text=True,
+              )
+              if r.returncode != 0:
+                  print(p["id"])
+                  continue
+              try:
+                  assets = {a["name"] for a in json.loads(r.stdout)["assets"]}
+              except Exception:
+                  assets = set()
+              expected = os.path.basename(p.get("downloadUrl", ""))
+              if expected and expected not in assets:
+                  print(p["id"])
+          PY
+          while IFS= read -r id; do
+            [ -n "$id" ] && FORCE="$FORCE --force --only $id"
+          done < /tmp/force-ids.txt
+          echo "强制重建：${FORCE:-（无）}"
+
           python tools/build_index.py \
             --base-url "https://github.com/${{ github.repository }}/releases/download" \
-            --out dist
+            --out dist $FORCE
           echo "uploads<<EOF" >> "$GITHUB_OUTPUT"
           cat dist/upload-list.txt 2>/dev/null >> "$GITHUB_OUTPUT" || true
           echo "EOF" >> "$GITHUB_OUTPUT"

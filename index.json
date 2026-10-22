@@ -17,9 +17,9 @@
         "NETWORK"
       ],
       "downloadUrl": "https://github.com/706412584/jianyun-plugins/releases/download/plugin/hello-service-1.0.0/hello-service-1.0.0.plugin",
-      "sha256": "800857dda7a4567f92921dada15470cb91198b7fe63b6cbc266bc91bc1f77f96",
-      "sizeBytes": 1614,
-      "trust": "community"
+      "sha256": "2bbe8077aa8a8f0048f593d6fb28a58a3319f2e7dae328692ef515c072ad626f",
+      "sizeBytes": 1616,
+      "trust": "verified"
     }
   ]
 }
