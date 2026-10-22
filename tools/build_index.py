@@ -106,9 +106,14 @@ def pack(plugin_dir, out_dir):
     name = f"{pid}-{version}.plugin"
     out_path = os.path.join(out_dir, name)
 
-    # **可复现打包**：固定时间戳与条目顺序，同一份源码每次打出的字节完全一致。
+    # **可复现打包**：固定时间戳与条目顺序，同一台机器上每次打出的字节完全一致。
     # 否则 CI 重跑会生成不同 sha256，而 index.json 里记的是上一次的——
     # 用户下载后校验必然失败（真机踩到：Release 资产与索引哈希对不上）。
+    #
+    # 注意：跨平台仍可能不同——zlib 版本差异会让 deflate 输出不一样
+    # （实测同一份源码：Windows/Python 3.13 打出 1616 B，Linux/Python 3.12 是 1611 B）。
+    # 所以**以 CI 打出的包为准**：本地跑出来的哈希不要手填进 index，
+    # build-index.yml 会拿 Release 资产的 digest 与 index 比对，不一致就重建。
     FIXED_TIME = (2020, 1, 1, 0, 0, 0)
 
     def add(zf, rel, data, mode):
