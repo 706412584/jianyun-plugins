@@ -36,7 +36,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # index.json 里可能已经有条目、但对应的 Release 资产并不存在
-          # （首次提交 index 时就会这样）。逐条核对，缺资产的用 --force 重建。
+          # （首次提交 index 时就会这样）。逐条核对，缺资产或**哈希对不上**的用 --force 重建。
+          #
+          # 为什么必须比哈希：只比文件名的话，「打包逻辑变了、index 重算了哈希，但资产还是
+          # 上一次上传的」这种情况查不出来——索引与资产长期不一致，而用户下载后校验必然失败
+          # （真机踩到过：1611 字节的旧资产配 1616 字节的新哈希）。GitHub 的资产元数据里
+          # 带 digest（sha256:…），直接拿来与 index 里的 sha256 比。
           FORCE=""
           python - <<'PY' > /tmp/force-ids.txt
           import json, os, subprocess, sys
@@ -53,11 +58,18 @@ jobs:
                   print(p["id"])
                   continue
               try:
-                  assets = {a["name"] for a in json.loads(r.stdout)["assets"]}
+                  assets = json.loads(r.stdout)["assets"]
               except Exception:
-                  assets = set()
+                  assets = []
               expected = os.path.basename(p.get("downloadUrl", ""))
-              if expected and expected not in assets:
+              match = next((a for a in assets if a.get("name") == expected), None)
+              if match is None:
+                  print(p["id"])
+                  continue
+              want = (p.get("sha256") or "").lower()
+              got = (match.get("digest") or "").lower().removeprefix("sha256:")
+              # digest 为空说明这个 gh 版本/接口没给，退回只比文件名
+              if want and got and want != got:
                   print(p["id"])
           PY
           while IFS= read -r id; do
