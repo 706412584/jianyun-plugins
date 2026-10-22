@@ -7,8 +7,13 @@
   "publisher": "706412584",
   "homepage": "https://github.com/706412584/jianyun-plugins",
   "category": "示例",
-  "architectures": ["arm64", "x86_64"],
-  "permissions": ["NETWORK"],
+  "architectures": [
+    "arm64",
+    "x86_64"
+  ],
+  "permissions": [
+    "NETWORK"
+  ],
   "launchType": "service",
   "servicePort": 18080,
   "servicePath": "/",
