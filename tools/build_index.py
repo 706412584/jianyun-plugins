@@ -106,24 +106,33 @@ def pack(plugin_dir, out_dir):
     name = f"{pid}-{version}.plugin"
     out_path = os.path.join(out_dir, name)
 
-    with zipfile.ZipFile(out_path, "w", zipfile.ZIP_DEFLATED) as zf:
-        info = zipfile.ZipInfo("manifest.json")
-        info.external_attr = 0o644 << 16
+    # **可复现打包**：固定时间戳与条目顺序，同一份源码每次打出的字节完全一致。
+    # 否则 CI 重跑会生成不同 sha256，而 index.json 里记的是上一次的——
+    # 用户下载后校验必然失败（真机踩到：Release 资产与索引哈希对不上）。
+    FIXED_TIME = (2020, 1, 1, 0, 0, 0)
+
+    def add(zf, rel, data, mode):
+        info = zipfile.ZipInfo(rel, date_time=FIXED_TIME)
+        info.external_attr = mode << 16
         info.compress_type = zipfile.ZIP_DEFLATED
+        info.create_system = 3  # Unix，让 external_attr 的 mode 生效
+        zf.writestr(info, data)
+
+    with zipfile.ZipFile(out_path, "w", zipfile.ZIP_DEFLATED) as zf:
         with open(manifest_path, "rb") as src:
-            zf.writestr(info, src.read())
+            add(zf, "manifest.json", src.read(), 0o644)
 
         payload = os.path.join(plugin_dir, "payload")
+        collected = []
         for root, _dirs, files in os.walk(payload):
             for fname in files:
                 full = os.path.join(root, fname)
                 rel = os.path.relpath(full, plugin_dir).replace(os.sep, "/")
-                mode = _mode_for(rel, os.stat(full).st_mode)
-                info = zipfile.ZipInfo(rel)
-                info.external_attr = mode << 16
-                info.compress_type = zipfile.ZIP_DEFLATED
-                with open(full, "rb") as src:
-                    zf.writestr(info, src.read())
+                collected.append((rel, full))
+        for rel, full in sorted(collected):
+            mode = _mode_for(rel, os.stat(full).st_mode)
+            with open(full, "rb") as src:
+                add(zf, rel, src.read(), mode)
 
     return out_path, manifest
 
