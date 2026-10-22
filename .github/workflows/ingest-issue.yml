@@ -1,0 +1,150 @@
+name: 处理插件投稿
+
+# 不会用 Git 的作者通过 Issue 表单投稿，这里自动下载附件、校验、发布。
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: ingest-issue-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    # 只处理带 submission 标签的表单投稿
+    if: contains(github.event.issue.labels.*.name, 'plugin-submission')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 从 Issue 正文提取附件链接
+        id: extract
+        env:
+          BODY: ${{ github.event.issue.body }}
+        run: |
+          # GitHub 把拖入的附件渲染成 markdown 链接，指向 github.com/user-attachments/assets/<uuid>
+          URL=$(printf '%s' "$BODY" | grep -oE 'https://github\.com/user-attachments/assets/[A-Za-z0-9-]+' | head -n1 || true)
+          if [ -z "$URL" ]; then
+            echo "found=" >> "$GITHUB_OUTPUT"
+            echo "未在正文里找到附件链接（应把 .zip 文件拖进表单的插件包字段）" > /tmp/reason.txt
+          else
+            echo "found=1" >> "$GITHUB_OUTPUT"
+            echo "url=$URL" >> "$GITHUB_OUTPUT"
+            echo "找到附件：$URL"
+          fi
+
+      - name: 下载附件
+        if: steps.extract.outputs.found == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p /tmp/incoming
+          # user-attachments 需要跟随重定向，且公开仓库的附件可匿名下载；
+          # 带上 token 更稳（避免限流）。
+          curl -fL --retry 3 --retry-delay 2 \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -o /tmp/incoming/package.zip "${{ steps.extract.outputs.url }}"
+
+      - name: 校验
+        id: validate
+        if: steps.extract.outputs.found == '1'
+        run: |
+          if python tools/validate.py --zip /tmp/incoming/package.zip > /tmp/validate.log 2>&1; then
+            echo "ok=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=" >> "$GITHUB_OUTPUT"
+          fi
+          cat /tmp/validate.log
+
+      - name: 发布
+        id: publish
+        if: steps.validate.outputs.ok == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 附件扩展名是 .zip（GitHub 不接受 .plugin），重命名后再走正常流程
+          mkdir -p plugins/_incoming
+          python - <<'PY'
+          import json, os, shutil, zipfile
+          src = "/tmp/incoming/package.zip"
+          with zipfile.ZipFile(src) as zf:
+              manifest = json.loads(zf.read("manifest.json").decode("utf-8"))
+          pid = manifest["id"]
+          dst_dir = os.path.join("plugins", pid)
+          # 直接落成源目录，后续 build_index 会重新打包（保证权限位正确）
+          shutil.rmtree(dst_dir, ignore_errors=True)
+          os.makedirs(dst_dir, exist_ok=True)
+          with zipfile.ZipFile(src) as zf:
+              for info in zf.infolist():
+                  if info.is_dir():
+                      continue
+                  if info.filename != "manifest.json" and not info.filename.startswith("payload/"):
+                      continue
+                  out = os.path.join(dst_dir, info.filename)
+                  os.makedirs(os.path.dirname(out), exist_ok=True)
+                  with zf.open(info) as r, open(out, "wb") as w:
+                      shutil.copyfileobj(r, w)
+          print(f"已展开到 {dst_dir}")
+          with open("/tmp/pid.txt", "w") as f:
+              f.write(pid)
+          PY
+
+          PID=$(cat /tmp/pid.txt)
+          python tools/build_index.py \
+            --base-url "https://github.com/${{ github.repository }}/releases/download" \
+            --out dist --only "$PID" | tee /tmp/build.log
+
+          if [ -s dist/upload-list.txt ]; then
+            while IFS=$'\t' read -r pkg tag; do
+              [ -z "$pkg" ] && continue
+              if gh release view "$tag" >/dev/null 2>&1; then
+                gh release upload "$tag" "$pkg" --clobber
+              else
+                gh release create "$tag" "$pkg" --title "$(basename "$tag")" --notes "来自 Issue #${{ github.event.issue.number }}"
+              fi
+            done < dist/upload-list.txt
+          fi
+          echo "pid=$PID" >> "$GITHUB_OUTPUT"
+
+      - name: 提交并推送
+        if: steps.validate.outputs.ok == '1'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add plugins index.json
+          git diff --cached --quiet || git commit -m "feat(plugins): 来自 Issue #${{ github.event.issue.number }} 的投稿 [skip ci]"
+          git push
+
+      - name: 回复成功
+        if: steps.validate.outputs.ok == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue comment "${{ github.event.issue.number }}" --body "✅ 已发布：\`${{ steps.publish.outputs.pid }}\`
+          App 内「插件 → 市场」下拉刷新即可看到。"
+          gh issue close "${{ github.event.issue.number }}"
+
+      - name: 回复失败
+        if: steps.validate.outputs.ok != '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -f /tmp/reason.txt ]; then REASON=$(cat /tmp/reason.txt); else REASON=$(cat /tmp/validate.log 2>/dev/null || echo "未知原因"); fi
+          gh issue comment "${{ github.event.issue.number }}" --body "❌ 投稿未通过：
+
+          \`\`\`
+          $REASON
+          \`\`\`
+
+          修改后编辑本 Issue（重新拖入文件）会自动重试；也可以改用 PR 方式提交。"
+          gh issue edit "${{ github.event.issue.number }}" --add-label "needs-fix" || true

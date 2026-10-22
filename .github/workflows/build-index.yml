@@ -1,0 +1,72 @@
+name: 打包并发布
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "plugins/**"
+      - "tools/**"
+      - ".github/workflows/build-index.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  # 两次推送同时跑会各自算一遍 sha256 并互相覆盖 index.json
+  group: build-index
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # 需要提交更新后的 index.json
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 打包 + 生成索引
+        id: build
+        run: |
+          python tools/build_index.py \
+            --base-url "https://github.com/${{ github.repository }}/releases/download" \
+            --out dist
+          echo "uploads<<EOF" >> "$GITHUB_OUTPUT"
+          cat dist/upload-list.txt 2>/dev/null >> "$GITHUB_OUTPUT" || true
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: 上传 Release 资产
+        if: steps.build.outputs.uploads != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # upload-list.txt 每行是「本地路径<TAB>tag」。同名 tag 复用同一个 Release，
+          # 这样同一插件的多个版本会归到同一页面，便于用户查看历史。
+          while IFS=$'\t' read -r pkg tag; do
+            [ -z "$pkg" ] && continue
+            echo "── $tag ← $pkg"
+            if gh release view "$tag" >/dev/null 2>&1; then
+              gh release upload "$tag" "$pkg" --clobber
+            else
+              gh release create "$tag" "$pkg" \
+                --title "$(basename "$tag")" \
+                --notes "自动发布：$(basename "$pkg")"
+            fi
+          done < dist/upload-list.txt
+
+      - name: 提交 index.json
+        run: |
+          if git diff --quiet -- index.json; then
+            echo "index.json 无变化"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.json
+          git commit -m "chore(index): 更新插件索引 [skip ci]"
+          git push

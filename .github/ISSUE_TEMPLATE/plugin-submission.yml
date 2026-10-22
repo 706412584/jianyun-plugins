@@ -1,0 +1,91 @@
+name: 提交插件
+description: 不会用 Git 也能发布插件：填好信息、把插件包拖进来即可
+title: "[插件] "
+labels: ["plugin-submission"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢投稿！填写后机器人会自动校验并发布，结果会回复在本 Issue 里。
+
+        **打包要求**：`.zip` 文件，根目录有 `manifest.json`，脚本放在 `payload/` 下。
+        详细说明见 [README](https://github.com/706412584/jianyun-plugins#readme)。
+
+  - type: input
+    id: plugin_id
+    attributes:
+      label: 插件 ID
+      description: 与 manifest.json 里的 id 完全一致。只能含字母、数字、点、下划线、连字符。
+      placeholder: my-plugin
+    validations:
+      required: true
+
+  - type: input
+    id: plugin_name
+    attributes:
+      label: 插件名称
+      description: 显示在市场上的名字
+      placeholder: 我的插件
+    validations:
+      required: true
+
+  - type: input
+    id: plugin_version
+    attributes:
+      label: 版本
+      description: 语义化版本，同一插件的新版本必须大于已发布的
+      placeholder: 1.0.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: plugin_description
+    attributes:
+      label: 一句话说明
+      description: 告诉用户这个插件能做什么
+      placeholder: 把本地端口映射到 XXX 服务
+    validations:
+      required: true
+
+  - type: dropdown
+    id: plugin_category
+    attributes:
+      label: 分类
+      options:
+        - 网络
+        - 存储
+        - 开发工具
+        - 媒体
+        - 数据库
+        - 示例
+        - 其他
+    validations:
+      required: true
+
+  - type: input
+    id: plugin_homepage
+    attributes:
+      label: 项目主页（可选）
+      description: 插件源码或说明页地址
+      placeholder: https://github.com/you/my-plugin
+
+  - type: textarea
+    id: plugin_package
+    attributes:
+      label: 插件包
+      description: |
+        把 `.zip` 文件**拖进这个输入框**（不要只粘贴文字）。
+        拖入后会自动生成一个 `https://github.com/user-attachments/...` 链接，机器人靠它下载。
+      placeholder: 把 .zip 拖到这里
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: 确认
+      options:
+        - label: 我确认这个插件不包含恶意代码，且安装步骤里没有删除用户数据的命令
+          required: true
+        - label: 我理解插件会在用户容器内运行，可以访问容器里的文件与网络
+          required: true

@@ -1,0 +1,71 @@
+name: 校验插件
+
+on:
+  pull_request:
+    paths:
+      - "plugins/**"
+      - "tools/**"
+      - ".github/workflows/validate.yml"
+  push:
+    branches: [master]
+    paths:
+      - "plugins/**"
+      - "tools/**"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # 需要与 base 分支比较，才能只校验本 PR 新增/修改的插件
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 确定要校验的插件目录
+        id: changed
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch origin "${{ github.base_ref }}" --depth=1 || true
+            git diff --name-only "origin/${{ github.base_ref }}...HEAD" -- 'plugins/**' > /tmp/files.txt || true
+            awk -F/ 'NF>=2 && $1=="plugins" {print $1"/"$2}' /tmp/files.txt | sort -u > /tmp/dirs.txt
+          else
+            find plugins -mindepth 2 -maxdepth 2 -name manifest.json \
+              | sed 's#/manifest.json##' | sort -u > /tmp/dirs.txt
+          fi
+          echo "将校验："
+          cat /tmp/dirs.txt
+          {
+            echo "dirs<<EOF"
+            cat /tmp/dirs.txt
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: 校验
+        if: steps.changed.outputs.dirs != ''
+        run: |
+          FAIL=0
+          while IFS= read -r dir; do
+            [ -z "$dir" ] && continue
+            echo "── $dir"
+            python tools/validate.py "$dir" || FAIL=1
+          done < /tmp/dirs.txt
+          exit $FAIL
+
+      - name: 目录名与 manifest.id 必须一致
+        if: steps.changed.outputs.dirs != ''
+        run: |
+          FAIL=0
+          while IFS= read -r dir; do
+            [ -z "$dir" ] && continue
+            NAME=$(basename "$dir")
+            ID=$(python -c "import json,sys;print(json.load(open(sys.argv[1],encoding='utf-8'))['id'])" "$dir/manifest.json")
+            if [ "$NAME" != "$ID" ]; then
+              echo "错误：目录名 $NAME 与 manifest.id $ID 不一致"
+              FAIL=1
+            fi
+          done < /tmp/dirs.txt
+          exit $FAIL
