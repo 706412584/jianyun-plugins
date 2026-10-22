@@ -68,8 +68,7 @@ def load_index():
     return data
 
 
-def load_trusted():
-    path = os.path.join(ROOT, ".github", "trusted-publishers.txt")
+def _read_list(path):
     if not os.path.isfile(path):
         return set()
     with open(path, "r", encoding="utf-8") as f:
@@ -78,6 +77,26 @@ def load_trusted():
             for line in f
             if line.strip() and not line.strip().startswith("#")
         }
+
+
+def load_trusted():
+    """受信任的发布者（GitHub 用户名）。
+
+    **这只是一半条件**：publisher 是投稿者在 manifest 里自己填的字符串，
+    任何人写 `"publisher": "维护者用户名"` 都能命中这个列表。
+    真正决定「已验证」的还有 [load_vouched_plugins] ——维护者逐个插件签过字的名单。
+    """
+    return _read_list(os.path.join(ROOT, ".github", "trusted-publishers.txt"))
+
+
+def load_vouched_plugins():
+    """维护者人工确认过的插件 id（一行一个）。
+
+    为什么需要：自动校验只能挡住已知的危险模式，挡不住「把容器里的凭据发到
+    某个看起来正常的域名」。而 publisher 字段无法证明身份，所以「已验证」必须
+    由人来签发，签发的结果就是这份名单。
+    """
+    return _read_list(os.path.join(ROOT, ".github", "verified-plugins.txt"))
 
 
 # 需要可执行位的扩展名。**不能依赖 os.stat**：Windows 上的文件系统没有 Unix
@@ -168,12 +187,25 @@ def main():
             "若已随仓库提交，正常流程会误判为已发布）"
         ),
     )
+    ap.add_argument(
+        "--trust",
+        choices=["auto", "community", "verified"],
+        default="auto",
+        help=(
+            "信任级别。auto = 按 manifest 的 publisher 与 trusted-publishers.txt 比对；"
+            "community = 一律标为社区投稿。"
+            "**Issue 投稿必须用 community**：publisher 是投稿者自己填的字符串，"
+            "不是身份证明——任何人写 publisher=维护者用户名 都能拿到「已验证」徽章。"
+            "verified 只应来自人工合并的 PR（维护者看过内容）。"
+        ),
+    )
     args = ap.parse_args()
 
     os.makedirs(args.out, exist_ok=True)
     index = load_index()
     by_id = {p["id"]: p for p in index["plugins"]}
     trusted = load_trusted()
+    vouched = load_vouched_plugins()
 
     uploads = []
     changed = False
@@ -231,7 +263,20 @@ def main():
 
         tag = f"{args.tag_prefix}/{pid}-{version}"
         publisher = str(manifest.get("publisher", "")).strip()
-        trust = "verified" if publisher.lower() in trusted else "community"
+        if args.trust == "auto":
+            # publisher 只是清单里的一个字符串，**不是身份证明**：任何人写
+            # `"publisher": "维护者用户名"` 都能命中 trusted-publishers.txt。
+            # 所以「已验证」要求两个条件同时成立：
+            #   1. publisher 在受信发布者列表里；
+            #   2. 这个插件 id 在维护者人工签字的 verified-plugins.txt 里。
+            # 条件 2 只能靠人改文件来满足，投稿者改不到。
+            trust = (
+                "verified"
+                if publisher.lower() in trusted and pid.lower() in vouched
+                else "community"
+            )
+        else:
+            trust = args.trust
 
         entry = {
             "id": pid,

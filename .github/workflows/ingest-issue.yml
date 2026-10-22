@@ -8,6 +8,8 @@ on:
 permissions:
   contents: write
   issues: write
+  # 社区投稿走 PR：需要创建/更新 pull request
+  pull-requests: write
 
 concurrency:
   group: ingest-issue-${{ github.event.issue.number }}
@@ -66,14 +68,47 @@ jobs:
           fi
           cat /tmp/validate.log
 
-      - name: 发布
-        id: publish
+      - name: 判定信任级别
+        id: trust
         if: steps.validate.outputs.ok == '1'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AUTHOR: ${{ github.event.issue.user.login }}
         run: |
-          # 附件扩展名是 .zip（GitHub 不接受 .plugin），重命名后再走正常流程
-          mkdir -p plugins/_incoming
+          # publisher 是投稿者在 manifest 里**自己填的字符串**，不是身份证明：
+          # 任何人写 publisher=维护者用户名 都能拿到「已验证」徽章。
+          # 真正的身份只有 GitHub 给的这个 issue 作者登录名。
+          # 因此：只有「publisher 在受信列表里，且 issue 作者就是这个 publisher」
+          # 才走自动发布 + verified；其余一律 community，转成 PR 等维护者点合并。
+          python - <<'PY' > /tmp/trust.txt
+          import json, os, zipfile
+          with zipfile.ZipFile("/tmp/incoming/package.zip") as zf:
+              m = json.loads(zf.read("manifest.json").decode("utf-8"))
+          publisher = str(m.get("publisher", "")).strip().lower()
+          author = os.environ.get("AUTHOR", "").strip().lower()
+          trusted = set()
+          try:
+              with open(".github/trusted-publishers.txt", encoding="utf-8") as f:
+                  trusted = {
+                      line.strip().lower() for line in f
+                      if line.strip() and not line.strip().startswith("#")
+                  }
+          except FileNotFoundError:
+              pass
+          if publisher and publisher == author and publisher in trusted:
+              print("verified")
+          else:
+              print("community")
+          PY
+          TRUST=$(cat /tmp/trust.txt)
+          echo "level=$TRUST" >> "$GITHUB_OUTPUT"
+          echo "信任级别：$TRUST（投稿者 $AUTHOR）"
+
+      - name: 展开投稿包
+        id: unpack
+        if: steps.validate.outputs.ok == '1'
+        run: |
+          # 附件扩展名是 .zip（GitHub 不接受 .plugin），这里还原成源目录，
+          # 后续 build_index 会重新打包（保证权限位正确）
           python - <<'PY'
           import json, os, shutil, zipfile
           src = "/tmp/incoming/package.zip"
@@ -81,7 +116,6 @@ jobs:
               manifest = json.loads(zf.read("manifest.json").decode("utf-8"))
           pid = manifest["id"]
           dst_dir = os.path.join("plugins", pid)
-          # 直接落成源目录，后续 build_index 会重新打包（保证权限位正确）
           shutil.rmtree(dst_dir, ignore_errors=True)
           os.makedirs(dst_dir, exist_ok=True)
           with zipfile.ZipFile(src) as zf:
@@ -98,11 +132,20 @@ jobs:
           with open("/tmp/pid.txt", "w") as f:
               f.write(pid)
           PY
+          echo "pid=$(cat /tmp/pid.txt)" >> "$GITHUB_OUTPUT"
 
-          PID=$(cat /tmp/pid.txt)
+      - name: 直接发布（受信作者）
+        id: publish
+        if: steps.validate.outputs.ok == '1' && steps.trust.outputs.level == 'verified'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PID="${{ steps.unpack.outputs.pid }}"
+          # 用 auto（不是强制 verified）：publisher 命中的只说明「作者可信」，
+          # 这个插件本身有没有被签字，仍由 verified-plugins.txt 决定。
           python tools/build_index.py \
             --base-url "https://github.com/${{ github.repository }}/releases/download" \
-            --out dist --only "$PID" | tee /tmp/build.log
+            --out dist --only "$PID" --trust auto | tee /tmp/build.log
 
           if [ -s dist/upload-list.txt ]; then
             while IFS=$'\t' read -r pkg tag; do
@@ -114,24 +157,71 @@ jobs:
               fi
             done < dist/upload-list.txt
           fi
-          echo "pid=$PID" >> "$GITHUB_OUTPUT"
 
-      - name: 提交并推送
-        if: steps.validate.outputs.ok == '1'
-        run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add plugins index.json
           git diff --cached --quiet || git commit -m "feat(plugins): 来自 Issue #${{ github.event.issue.number }} 的投稿 [skip ci]"
           git push
 
-      - name: 回复成功
-        if: steps.validate.outputs.ok == '1'
+      - name: 开 PR 待人工合并（社区投稿）
+        id: propose
+        if: steps.validate.outputs.ok == '1' && steps.trust.outputs.level != 'verified'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh issue comment "${{ github.event.issue.number }}" --body "✅ 已发布：\`${{ steps.publish.outputs.pid }}\`
+          # 社区投稿**不直接进 master**：自动校验只能挡住已知的危险模式，
+          # 挡不住「把容器里的凭据发到某个看起来正常的域名」。发布权必须经过人。
+          BRANCH="submission/issue-${{ github.event.issue.number }}"
+          # 受信作者走的是另一条路（已直接 push 到 master），这里不能再 checkout
+          # 一个与 master 同名的分支去推，否则会把 master 的内容推到新分支上
+          git fetch origin master
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add plugins
+          git commit -m "feat(plugins): 来自 Issue #${{ github.event.issue.number }} 的投稿"
+          git push origin "$BRANCH" --force
+
+          # 用户改稿后重跑（Issue edited）时 PR 已经存在：直接复用，不要重复开
+          EXISTING=$(gh pr list --head "$BRANCH" --json url --jq '.[0].url' 2>/dev/null || true)
+          if [ -n "$EXISTING" ]; then
+            echo "pr=$EXISTING" >> "$GITHUB_OUTPUT"
+            echo "已有 PR：$EXISTING"
+            exit 0
+          fi
+
+          PR_URL=$(gh pr create \
+            --head "$BRANCH" \
+            --title "插件投稿：${{ steps.unpack.outputs.pid }}（Issue #${{ github.event.issue.number }}）" \
+            --body "来自 Issue #${{ github.event.issue.number }} 的社区投稿，自动校验已通过。
+
+          **合并前请人工看一眼** \`plugins/${{ steps.unpack.outputs.pid }}/manifest.json\` 里的 installSteps：
+          插件在用户容器里以 root 执行，自动校验挡不住「把凭据发到外部」这类行为。
+
+          合并后 \`build-index.yml\` 会自动打包、发 Release 并更新索引（信任级别为 community）。")
+
+          echo "pr=$PR_URL" >> "$GITHUB_OUTPUT"
+
+      - name: 回复（已发布）
+        if: steps.validate.outputs.ok == '1' && steps.trust.outputs.level == 'verified'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue comment "${{ github.event.issue.number }}" --body "✅ 已发布：\`${{ steps.unpack.outputs.pid }}\`
           App 内「插件 → 市场」下拉刷新即可看到。"
+          gh issue close "${{ github.event.issue.number }}"
+
+      - name: 回复（待人工合并）
+        if: steps.validate.outputs.ok == '1' && steps.trust.outputs.level != 'verified'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue comment "${{ github.event.issue.number }}" --body "✅ 自动校验已通过，已创建 PR 等待人工合并：
+          ${{ steps.propose.outputs.pr }}
+
+          合并后 App 内「插件 → 市场」刷新即可看到（标记为「社区」）。
+          社区投稿未经人工审核内容，合并前维护者会看一眼安装命令。"
           gh issue close "${{ github.event.issue.number }}"
 
       - name: 回复失败

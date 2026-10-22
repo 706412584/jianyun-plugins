@@ -93,7 +93,7 @@ my-plugin/
 | 解压后大小 | ≤ 100 MB |
 | zip 条目 | 不得含 `..`、绝对路径、符号链接 |
 | payload 二进制 | 不允许 ELF / PE / Mach-O（脚本可以） |
-| 危险命令 | `rm -rf /`、`curl \| sh`、`chmod 777 /`、写 `/data/data/`、`/system` |
+| 危险命令 | `rm -rf /`、`curl \| sh`、`chmod 777 /`、写 `/data/data/`、`/system`。**`payload/` 里的脚本与 manifest 里会被执行的命令字段（installSteps / uninstallSteps / launchCommand / verifyCommand / infoCommand / actions[].command）都扫** |
 | 外连域名 | 未在 manifest 声明时给出警告 |
 
 本地也能跑：
@@ -108,11 +108,25 @@ python tools/validate.py plugins/my-plugin
 
 | 标记 | 含义 |
 |---|---|
-| `verified` | 已知维护者（`.github/trusted-publishers.txt`） |
-| `community` | 社区投稿，自动校验通过 |
+| `verified` | 维护者**人工看过**这个插件的命令并签字（见下） |
+| `community` | 社区投稿，自动校验通过，未经人工审核 |
 | `disputed` | 被举报，App 内显示红色警告 |
 
-首次投稿的发布者会进入 `submissions/` 等待人工查看，之后自动发布。
+**`verified` 不是自动的。** manifest 里的 `publisher` 是投稿者自己填的字符串，
+不是身份证明——任何人写 `"publisher": "706412584"` 都能命中
+`.github/trusted-publishers.txt`。所以「已验证」要求两个条件同时成立：
+
+1. `publisher` 在 `.github/trusted-publishers.txt` 里；
+2. 插件 id 在 `.github/verified-plugins.txt` 里（维护者人工看过后加进去）。
+
+条件 2 只能通过 PR 由维护者合并来满足，投稿者改不到它。
+
+**投稿路径**：
+
+- Issue 表单投稿 → 自动校验 → 开 PR，等维护者合并（**不会直接进 master**）；
+- 若 Issue 作者本人就是 `publisher` 且在受信列表里 → 自动发布，但仍标 `community`
+  （受信发布者的新插件也要先签字才能变 `verified`）；
+- PR 投稿 → CI 校验 → 维护者合并。
 
 ---
 

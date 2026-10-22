@@ -103,7 +103,33 @@ def check_manifest(manifest, report):
         if not isinstance(v, list):
             report.error(f"{key} 必须是数组")
 
+    # 清单里的命令字段同样会在容器里以 root 执行，必须与 payload/ 里的脚本同等待遇。
+    # 只扫 payload/ 是不够的：installSteps 写 `rm -rf /` 的包能一路通过校验并自动发布。
+    for where, command in manifest_commands(manifest):
+        for pattern, label in DANGEROUS_PATTERNS:
+            if pattern.search(command):
+                report.error(f"{where} 含危险命令：{label}（{command[:80]}）")
+
     return report.ok
+
+
+def manifest_commands(manifest):
+    """清单里所有会被宿主执行的命令，返回 (字段名, 命令文本)。"""
+    out = []
+    for i, step in enumerate(manifest.get("installSteps") or []):
+        if isinstance(step, str):
+            out.append((f"installSteps[{i}]", step))
+    for i, step in enumerate(manifest.get("uninstallSteps") or []):
+        if isinstance(step, str):
+            out.append((f"uninstallSteps[{i}]", step))
+    for key in ("launchCommand", "verifyCommand", "infoCommand"):
+        v = manifest.get(key)
+        if isinstance(v, str) and v.strip():
+            out.append((key, v))
+    for i, action in enumerate(manifest.get("actions") or []):
+        if isinstance(action, dict) and isinstance(action.get("command"), str):
+            out.append((f"actions[{i}].command", action["command"]))
+    return out
 
 
 def check_script_content(name, data, report):
