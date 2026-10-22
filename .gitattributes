@@ -1,0 +1,7 @@
+# 脚本在 Windows 上检出后仍须保持 LF，否则容器内 `#!/bin/sh\r` 无法执行
+*.sh text eol=lf
+*.py text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
