@@ -1,0 +1,5 @@
+# 校验/打包的临时产物
+*.part
+dist/
+__pycache__/
+*.pyc
