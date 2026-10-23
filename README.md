@@ -151,6 +151,32 @@ python tools/validate.py plugins/my-plugin
 
 ---
 
+## 维护者备忘
+
+### 必需的标签
+
+Issue 表单模板声明了 `labels: [plugin-submission]`，但 **GitHub 不会自动创建标签**，
+只会静默忽略。而 `ingest-issue.yml` 的触发条件是
+`contains(github.event.issue.labels.*.name, 'plugin-submission')`——
+标签不存在时 workflow 永远不跑，投稿者提交后什么也不会发生（且没有任何报错）。
+
+新建仓库或 fork 后必须执行：
+
+```bash
+gh label create plugin-submission --description "通过 Issue 表单提交的插件投稿" --color 0E8A16
+gh label create needs-fix --description "投稿未通过，需要作者修改" --color D93F0B
+```
+
+`needs-fix` 由失败回复步骤自动添加，缺了它只会让那一步 `|| true` 静默跳过，
+不影响投稿处理，但用户看不到「需要修改」的标记。
+
+### 给插件签字（标为 verified）
+
+把插件 id 加进 `.github/verified-plugins.txt`（一行一个）。加之前请自己打开
+`plugins/<id>/manifest.json` 看一遍 `installSteps` 与 `payload/` 里的脚本。
+
+---
+
 ## 许可
 
 插件由各自作者授权，见各插件 `manifest.json` 的 `homepage` 或包内说明。
