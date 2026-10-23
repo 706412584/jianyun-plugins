@@ -46,6 +46,7 @@ jobs:
           fi
 
       - name: 下载附件
+        id: download
         if: steps.extract.outputs.found == '1'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -53,13 +54,23 @@ jobs:
           mkdir -p /tmp/incoming
           # user-attachments 需要跟随重定向，且公开仓库的附件可匿名下载；
           # 带上 token 更稳（避免限流）。
-          curl -fL --retry 3 --retry-delay 2 \
+          #
+          # 失败时**不能让 job 直接挂掉**：GitHub 的步骤默认隐含 `if: success()`，
+          # 一旦这里失败，后面所有步骤（包括「回复失败」）都会被跳过，
+          # 投稿者提交完就再也收不到任何反馈，只能干等。
+          if curl -fL --retry 3 --retry-delay 2 \
             -H "Authorization: Bearer $GH_TOKEN" \
-            -o /tmp/incoming/package.zip "${{ steps.extract.outputs.url }}"
+            -o /tmp/incoming/package.zip "${{ steps.extract.outputs.url }}"; then
+            echo "downloaded=1" >> "$GITHUB_OUTPUT"
+            echo "下载完成：$(stat -c %s /tmp/incoming/package.zip) 字节"
+          else
+            echo "downloaded=" >> "$GITHUB_OUTPUT"
+            echo "附件下载失败：链接可能已过期，或附件被删除。请重新拖入插件包。" > /tmp/reason.txt
+          fi
 
       - name: 校验
         id: validate
-        if: steps.extract.outputs.found == '1'
+        if: steps.download.outputs.downloaded == '1'
         run: |
           if python tools/validate.py --zip /tmp/incoming/package.zip > /tmp/validate.log 2>&1; then
             echo "ok=1" >> "$GITHUB_OUTPUT"
@@ -166,7 +177,9 @@ jobs:
 
       - name: 开 PR 待人工合并（社区投稿）
         id: propose
-        if: steps.validate.outputs.ok == '1' && steps.trust.outputs.level != 'verified'
+        # 用 == 'community' 而不是 != 'verified'：trust 步骤失败时 level 是空串，
+        # 而 `'' != 'verified'` 为真——会把没判定过的投稿当成社区投稿推上去。
+        if: steps.validate.outputs.ok == '1' && steps.trust.outputs.level == 'community'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -180,7 +193,10 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
           git add plugins
-          git commit -m "feat(plugins): 来自 Issue #${{ github.event.issue.number }} 的投稿"
+          # 用户原样重提（Issue edited 但包没变）时没有变更可提交；
+          # 裸 `git commit` 会以非零退出让整个步骤失败，后面的开 PR 就没了。
+          git diff --cached --quiet \
+            || git commit -m "feat(plugins): 来自 Issue #${{ github.event.issue.number }} 的投稿"
           git push origin "$BRANCH" --force
 
           # 用户改稿后重跑（Issue edited）时 PR 已经存在：直接复用，不要重复开
@@ -213,7 +229,7 @@ jobs:
           gh issue close "${{ github.event.issue.number }}"
 
       - name: 回复（待人工合并）
-        if: steps.validate.outputs.ok == '1' && steps.trust.outputs.level != 'verified'
+        if: steps.validate.outputs.ok == '1' && steps.trust.outputs.level == 'community'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -225,16 +241,33 @@ jobs:
           gh issue close "${{ github.event.issue.number }}"
 
       - name: 回复失败
-        if: steps.validate.outputs.ok != '1'
+        # 必须用 always()：validate 之前任何一步失败（比如附件下载失败）都会让
+        # 默认的 if: success() 全部短路，投稿者就收不到失败原因了。
+        #
+        # 条件写成「没成功发布」而不是「validate 没通过」：信任判定/开 PR 这些
+        # 后续步骤失败时 validate.outputs.ok 仍是 1，投稿者同样会收不到任何反馈。
+        if: always() && !(steps.publish.outcome == 'success' || steps.propose.outcome == 'success')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ -f /tmp/reason.txt ]; then REASON=$(cat /tmp/reason.txt); else REASON=$(cat /tmp/validate.log 2>/dev/null || echo "未知原因"); fi
+          # 按阶段取原因。不能一律读 validate.log：校验通过后若在开 PR 阶段失败，
+          # 那份日志写的是「通过」，会给出与事实相反的说明。
+          if [ -f /tmp/reason.txt ]; then
+            REASON=$(cat /tmp/reason.txt)
+            HINT="修改后编辑本 Issue（重新拖入文件）会自动重试。"
+          elif [ "${{ steps.validate.outputs.ok }}" != "1" ]; then
+            REASON=$(cat /tmp/validate.log 2>/dev/null || echo "未知原因")
+            HINT="修改后编辑本 Issue（重新拖入文件）会自动重试；也可以改用 PR 方式提交。"
+          else
+            REASON="自动校验已通过，但后续发布步骤失败（信任判定 / 创建 PR / 推送分支）。
+          这通常是仓库配置或权限问题，不是你的插件有问题——请稍后重试，或直接提 PR。"
+            HINT="维护者可在 Actions 页面查看失败日志。"
+          fi
           gh issue comment "${{ github.event.issue.number }}" --body "❌ 投稿未通过：
 
           \`\`\`
           $REASON
           \`\`\`
 
-          修改后编辑本 Issue（重新拖入文件）会自动重试；也可以改用 PR 方式提交。"
+          $HINT"
           gh issue edit "${{ github.event.issue.number }}" --add-label "needs-fix" || true
