@@ -31,15 +31,23 @@ my-plugin/
     └── ...
 ```
 
-### 2. 不会 Git：网页表单
+### 2. 不会 Git：网页表单 / App 内直接投稿
 
-打开 [提交插件](https://github.com/706412584/jianyun-plugins/issues/new?template=plugin-submission.yml)，
-填写名称、说明、版本，把插件包（**`.zip`**，不是 `.plugin`）拖进文本框提交。
+两种入口，效果一样：
 
-机器人会自动下载、校验、发布，并在 Issue 里回复结果。失败会说明原因，改完重新提交即可。
+- 网页：[提交插件](https://github.com/706412584/jianyun-plugins/issues/new?template=plugin-submission.yml)
+- App 内：**插件 → 市场 → 右上角「发布」**，选一个 `.plugin` 包，App 会自动
+  导出一份 `.zip` 到手机的「下载」目录，并打开填好信息的表单页；
+  你把刚导出的 zip 拖进「插件包」字段即可。
+
+机器人会自动下载附件并校验，通过后**开一个 PR 等你合并**，并在 Issue 里回复 PR 链接。
+
+> 为什么要人工合并：自动校验只能挡住已知的危险命令模式
+> （`rm -rf /`、`curl | sh`、写 `/system` 等），挡不住「把容器里的凭据发到某个
+> 看起来正常的域名」这类行为。插件在用户容器里以 root 运行，发布权必须经过人。
 
 > GitHub 的附件上传不支持 `.plugin` 扩展名，所以表单收 `.zip`；
-> 机器人会重命名为 `.plugin` 再发布，App 侧无差别。
+> 机器人会解包成源目录，最终仍打包成 `.plugin` 发布，App 侧无差别。
 
 ### 3. 什么都不会：发给维护者
 
