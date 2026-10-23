@@ -3,6 +3,8 @@
 简云 Pro 的插件索引与发布仓库。App 内「插件 → 市场」读取本仓库的
 [`index.json`](index.json) 展示可安装插件。
 
+**要写插件**（不只是投稿）→ 看 **[插件开发指南](docs/plugin-dev.md)**。
+
 ## 三种投稿方式
 
 ### 1. 会 Git：提 PR（推荐）
@@ -196,6 +198,36 @@ gh api -X PUT repos/<owner>/<repo>/actions/permissions/workflow \
 `plugins/<id>/manifest.json` 看一遍 `installSteps` 与 `payload/` 里的脚本。
 
 ---
+
+## Gitee 镜像
+
+**为什么有这个东西**：国内移动网络访问不了 GitHub 的 Release 附件
+（`cdn.jsdelivr.net` 直接连不上、`github.com` 的附件下载常被阻断），而 App 的市场
+读取清单、下载插件包都要走网络。镜像让国内用户不挂代理也能用市场。
+
+**App 侧已内置**：`PluginMarket.indexUrls()` 把 Gitee 排在第一通道，
+`PluginMarket.sourcesFor()` 会把 GitHub Release 附件地址自动换成 Gitee 等价地址。
+镜像没同步时自动回落到 raw / gh-proxy / ghfast，不影响可用性。
+
+**镜像要同步两样**（缺一不可）：
+
+| 内容 | 不同步的后果 |
+|---|---|
+| 代码与 `index.json` | 市场列表拉不到 |
+| Release 附件（插件包本体） | 列表能显示，但点安装必失败 |
+
+`.github/workflows/mirror-gitee.yml` 在上游「打包并发布」成功后自动双推。
+
+### 一次性配置（维护者）
+
+1. 在 Gitee 建一个与 GitHub 同名的仓库（如 `jianyun-plugins`）。
+2. 本仓库 **Settings → Secrets and variables → Actions** 加
+   `GITEE_TOKEN`：Gitee 的**私人令牌**，勾 `projects` 权限。
+3. `mirror-gitee.yml` 里的 `GITEE_OWNER` 改成你的 Gitee 用户名/组织名。
+4. 手动跑一次该 workflow（Actions → 同步到 Gitee 镜像 → Run workflow）验证。
+
+> Gitee 的 Release 附件单文件上限 **100 MB**，单仓库容量也有限。
+> 插件包上限 20 MB（见校验规则），不会碰到这个限制。
 
 ## 许可
 

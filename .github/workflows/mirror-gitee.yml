@@ -1,0 +1,73 @@
+name: 同步到 Gitee 镜像
+
+# 为什么需要这个：插件市场在**国内移动网络**下访问不了 GitHub 的 Release 附件
+# （cdn.jsdelivr 直接连不上、github.com 的附件下载常被阻断）。App 侧已把 Gitee
+# 镜像排为第一通道，前提是镜像仓库里得有同样的内容。
+#
+# 同步两样东西，缺一不可：
+#   1. **代码与 index.json** —— 清单本身，App 拉的就是它
+#   2. **Release 附件** —— 插件包本体，用户下载的就是它
+# 只同步代码会让市场列表能显示、但点安装就失败；只同步附件则清单拿不到。
+#
+# 前提（一次性，见 README「Gitee 镜像」）：
+#   - 在 Gitee 建好同名仓库，owner 填进下方 GITEE_OWNER
+#   - 仓库 Secrets 里加 GITEE_TOKEN（Gitee 私人令牌，勾 projects 权限）
+on:
+  # build-index 更新完 index.json 与 Release 后再同步，避免镜像拿到半旧状态
+  workflow_run:
+    workflows: ["打包并发布"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mirror-gitee
+  cancel-in-progress: false
+
+env:
+  # Gitee 镜像仓库的 owner；仓库名与 GitHub 侧保持一致
+  GITEE_OWNER: wu-yongchengsvip_admin
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    # workflow_run 触发时，上游失败就不要同步半截状态
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 检查令牌是否配置
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+        run: |
+          if [ -z "$GITEE_TOKEN" ]; then
+            echo "::error::缺少 GITEE_TOKEN secret，无法同步（见 README「Gitee 镜像」）"
+            exit 1
+          fi
+
+      - name: 同步代码与 index.json 到 Gitee
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+        run: |
+          REPO="${{ github.event.repository.name }}"
+          BRANCH="${{ github.ref_name }}"
+          git remote add gitee "https://${GITEE_OWNER}:${GITEE_TOKEN}@gitee.com/${GITEE_OWNER}/${REPO}.git"
+          # GitHub 侧是本尊，镜像只做单向覆盖——CI 提交的 [skip ci] 提交不会回流到这里，
+          # 所以镜像侧不存在需要保护的历史
+          git push gitee "HEAD:${BRANCH}" --force
+
+      - name: 同步 Release 附件到 Gitee
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 逻辑在脚本里（workflow 的 YAML 缩进会破坏 heredoc 终止符）
+          python3 tools/mirror_gitee.py \
+            --owner "${GITEE_OWNER}" \
+            --repo "${{ github.event.repository.name }}"
