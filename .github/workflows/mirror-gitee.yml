@@ -37,6 +37,10 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     steps:
       - uses: actions/checkout@v4
+        with:
+          # 必须取全量历史：checkout 默认浅克隆（depth=1），而 Gitee 会以
+          # 「shallow update not allowed」拒绝推送浅仓库
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
