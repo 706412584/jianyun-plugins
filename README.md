@@ -164,11 +164,31 @@ Issue 表单模板声明了 `labels: [plugin-submission]`，但 **GitHub 不会�
 
 ```bash
 gh label create plugin-submission --description "通过 Issue 表单提交的插件投稿" --color 0E8A16
+```
+
+`needs-fix` 标签由失败回复步骤自动添加（`--add-label needs-fix || true`）：
+**缺了它不影响投稿处理**，只是用户看不到「需要修改」的标记，所以可选。
+要建的话：
+
+```bash
 gh label create needs-fix --description "投稿未通过，需要作者修改" --color D93F0B
 ```
 
-`needs-fix` 由失败回复步骤自动添加，缺了它只会让那一步 `|| true` 静默跳过，
-不影响投稿处理，但用户看不到「需要修改」的标记。
+### 允许 Actions 创建 PR
+
+仓库设置里 **Settings → Actions → General → Workflow permissions** 必须勾选
+**Allow GitHub Actions to create and approve pull requests**。
+
+默认是关的。关着的时候 `gh pr create` 会直接失败，社区投稿（也就是不会用
+Git 的那条通道）整条走不通——而失败回复又会把它报成「仓库配置问题」。
+
+命令行等价操作（需要仓库 admin 权限）：
+
+```bash
+gh api -X PUT repos/<owner>/<repo>/actions/permissions/workflow \
+  -f default_workflow_permissions=read \
+  -F can_approve_pull_request_reviews=true
+```
 
 ### 给插件签字（标为 verified）
 
