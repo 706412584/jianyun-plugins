@@ -1,0 +1,34 @@
+name: E2E PR 权限测试（临时）
+
+# 临时工作流：验证 GitHub Actions 有权限创建 PR。
+# 验证完这个文件会被删除，不做其它事。
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 建分支并开 PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b e2e-pr-permission-test
+          mkdir -p plugins/_e2e_tmp
+          echo "e2e permission probe" > plugins/_e2e_tmp/README.txt
+          git add plugins/_e2e_tmp
+          git commit -m "chore: e2e PR 权限探针"
+          git push origin e2e-pr-permission-test --force
+          gh pr create --head e2e-pr-permission-test \
+            --title "E2E PR 权限测试（勿合并）" \
+            --body "验证 Actions 能否创建 PR。验证后即删。"
