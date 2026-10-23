@@ -74,4 +74,5 @@ jobs:
           # 逻辑在脚本里（workflow 的 YAML 缩进会破坏 heredoc 终止符）
           python3 tools/mirror_gitee.py \
             --owner "${GITEE_OWNER}" \
-            --repo "${{ github.event.repository.name }}"
+            --repo "${{ github.event.repository.name }}" \
+            --branch "${{ github.ref_name }}"

@@ -76,13 +76,23 @@ def _github_assets(tag: str) -> list[tuple[str, str]]:
     return rows
 
 
-def _ensure_release(owner: str, repo: str, token: str, tag: str, existing: list[dict]) -> str:
+def _ensure_release(
+    owner: str, repo: str, token: str, tag: str, existing: list[dict], branch: str
+) -> str:
     """返回该 tag 在 Gitee 上的 release id，不存在就建一个。"""
     for r in existing:
         if r.get("tag_name") == tag:
             return str(r["id"])
+    # target_commitish 必须显式给：Gitee 不会像 GitHub 那样从 tag 推断，
+    # 缺了会直接 400（`target_commitish is missing`）。镜像仓库的分支与上游同名。
     body = urllib.parse.urlencode(
-        {"access_token": token, "tag_name": tag, "name": tag, "body": f"自动同步自 GitHub 仓库 {tag}"}
+        {
+            "access_token": token,
+            "tag_name": tag,
+            "target_commitish": branch,
+            "name": tag,
+            "body": f"自动同步自 GitHub 仓库 {tag}",
+        }
     ).encode()
     created = json.loads(_req(f"{GITEE_API}/repos/{owner}/{repo}/releases", data=body, method="POST"))
     return str(created["id"])
@@ -134,6 +144,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--owner", required=True, help="Gitee 用户名/组织名")
     ap.add_argument("--repo", required=True, help="Gitee 仓库名（与 GitHub 同名）")
+    ap.add_argument("--branch", default="master", help="镜像仓库的默认分支（建 release 时要用）")
     args = ap.parse_args()
 
     gitee_token = os.environ.get("GITEE_TOKEN", "")
@@ -154,7 +165,7 @@ def main() -> int:
         assets = _github_assets(tag)
         if not assets:
             continue
-        rid = _ensure_release(args.owner, args.repo, gitee_token, tag, existing)
+        rid = _ensure_release(args.owner, args.repo, gitee_token, tag, existing, args.branch)
         print(f"── {tag} (release id={rid})")
         present = _existing_asset_names(args.owner, args.repo, gitee_token, rid)
 
