@@ -242,9 +242,13 @@ def main():
     for pid in ids:
         plugin_dir = os.path.join(PLUGINS_DIR, pid)
 
-        # 先跑校验：不合格的包绝不能进索引（索引是用户的安装来源）
+        # 先跑校验：不合格的包绝不能进索引（索引是用户的安装来源）。
+        # --allow-published-version：重新生成索引时会遍历**已发布**的插件，它们的
+        # 版本当然不会大于 index.json 里的自己；版本单调性由本脚本下面的
+        # version_gt 判断负责，不该在这里把已发布的包判成违规。
         proc = subprocess.run(
-            [sys.executable, os.path.join(ROOT, "tools", "validate.py"), plugin_dir],
+            [sys.executable, os.path.join(ROOT, "tools", "validate.py"), plugin_dir,
+             "--allow-published-version"],
             capture_output=True, text=True,
         )
         if proc.returncode != 0:
@@ -269,6 +273,21 @@ def main():
         if not args.force:
             if prev and prev.get("version") == version and args.skip_existing:
                 print(f"跳过 {pid} v{version}：已存在")
+                os.remove(pkg_path)
+                continue
+            if prev and prev.get("version") == version:
+                # 同版本不重新打包（省时间，也避免无谓改写 sha256），但要把
+                # **索引新增的字段补进已有条目**——否则加了新字段后，
+                # 已发布的插件永远拿不到它（首次遇到 updatedAt 就是这么漏的）。
+                before = dict(prev)
+                updated = plugin_updated_at(plugin_dir)
+                if updated:
+                    prev["updatedAt"] = updated
+                if prev != before:
+                    changed = True
+                    print(f"补全 {pid} v{version} 的索引字段")
+                else:
+                    print(f"跳过 {pid} v{version}：已存在")
                 os.remove(pkg_path)
                 continue
             if prev and not version_gt(version, prev.get("version", "0")):

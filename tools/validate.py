@@ -39,6 +39,11 @@ MAX_ENTRIES = 2000
 # 可能不在仓库根跑，不该因此报错。
 INDEX_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "index.json")
 
+# build_index.py 重新生成索引时会遍历已发布的插件，并在调用本脚本前设它为 True，
+# 见 check_manifest 的说明。用模块级变量是为了不改 validate_dir/validate_zip 的签名
+# （它们被测试与工具多处调用）。
+ALLOW_PUBLISHED_VERSION = False
+
 
 def load_published_versions(index_path=INDEX_FILE):
     """读 index.json，返回 {插件 id: 已发布版本}。读不到返回空表。"""
@@ -122,10 +127,12 @@ def load_manifest(text):
     return json.loads(text)
 
 
-def check_manifest(manifest, report, published=None):
+def check_manifest(manifest, report, published=None, allow_published_version=False):
     """字段级检查。返回 False 表示不必继续。
 
     [published] 是 {id: 已发布版本}；给了就检查版本单调性。
+    [allow_published_version] 供 build_index.py 重新生成索引时使用：
+    那里遍历的是**已发布**的插件，版本不会大于自己，单调性由调用方另行判断。
     """
     for key in REQUIRED:
         if not str(manifest.get(key, "")).strip():
@@ -144,7 +151,7 @@ def check_manifest(manifest, report, published=None):
     # 版本单调性：必须**大于**已发布版本。
     # 挡住两种投稿：① 与已发布同版本（重复投稿，合并后会覆盖）；② 版本回退。
     # App 内投稿有本地预检拦，但网页表单 / Issue 投稿绕过 App，只能在这里拦。
-    if published and pid and version and pid in published:
+    if published and not allow_published_version and pid and version and pid in published:
         cur = published[pid]
         if not version_is_newer(version, cur):
             report.error(
@@ -282,7 +289,7 @@ def validate_dir(path):
     if not isinstance(manifest, dict):
         report.error("manifest.json 顶层必须是对象")
         return report, None
-    if not check_manifest(manifest, report, load_published_versions()):
+    if not check_manifest(manifest, report, load_published_versions(), ALLOW_PUBLISHED_VERSION):
         return report, manifest
 
     payload_dir = os.path.join(path, "payload")
@@ -381,7 +388,7 @@ def validate_zip(zip_path):
         if not isinstance(manifest, dict):
             report.error("manifest.json 顶层必须是对象")
             return report, None
-        if not check_manifest(manifest, report, load_published_versions()):
+        if not check_manifest(manifest, report, load_published_versions(), ALLOW_PUBLISHED_VERSION):
             return report, manifest
 
         texts = []
@@ -412,7 +419,15 @@ def main():
     ap.add_argument("path", nargs="?", help="插件源目录")
     ap.add_argument("--zip", help="校验 zip 包")
     ap.add_argument("--json", action="store_true", help="输出 JSON")
+    ap.add_argument(
+        "--allow-published-version",
+        action="store_true",
+        help="跳过版本单调性检查（供 build_index.py 重新生成索引时使用）",
+    )
     args = ap.parse_args()
+
+    global ALLOW_PUBLISHED_VERSION
+    ALLOW_PUBLISHED_VERSION = args.allow_published_version
 
     if not args.path and not args.zip:
         ap.error("需要 path 或 --zip")
