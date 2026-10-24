@@ -107,6 +107,7 @@ my-plugin/
 | payload 二进制 | 不允许 ELF / PE / Mach-O（脚本可以） |
 | 危险命令 | `rm -rf /`、`curl \| sh`、`chmod 777 /`、写 `/data/data/`、`/system`。**`payload/` 里的脚本与 manifest 里会被执行的命令字段（installSteps / uninstallSteps / launchCommand / verifyCommand / infoCommand / actions[].command）都扫** |
 | 外连域名 | 未在 manifest 声明时给出警告 |
+| 组件依赖 | `requires[].component` 必须是宿主内置的 19 个组件 id 之一（写错会在用户装机时才发现，所以在投稿时拦下） |
 
 本地也能跑：
 

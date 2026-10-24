@@ -128,6 +128,50 @@ exec python3 -m http.server "$SERVICE_PORT"
 | `permissions` | 安装前提示用，如 `NETWORK`、`WORKSPACE_READ`。**仅提示，不强制拦截** |
 | `homepage` | 项目地址 |
 | `category` | 分类，见 README 的投稿表单选项 |
+| `requires` | 对容器组件的依赖，见下 |
+
+### requires —— 声明依赖的容器组件
+
+插件常需要 Python / Node / MariaDB 这类运行时。**不要自己在 `installSteps` 里 `apt-get install`**，
+而是声明依赖，让宿主去处理：
+
+```json
+"requires": [
+  { "component": "python", "minVersion": "3.11" },
+  { "component": "node" },
+  { "component": "redis", "optional": true }
+]
+```
+
+| 字段 | 说明 |
+|---|---|
+| `component` | 组件 id，见下方列表。**写错会被 CI 和 App 双双拦下** |
+| `minVersion` | 最低版本，可省略。多个已装版本中**有一个满足即通过** |
+| `optional` | `true` 表示缺失只提示、不阻断安装 |
+
+**可用的组件 id**（宿主内置 19 个）：
+
+```
+php  python  node  go  jdk  gradle  rust
+android_sdk  android_ndk
+mariadb  postgresql  redis  memcached
+nginx  container  phpmyadmin  adminer  composer  maven
+```
+
+宿主检查依赖后的行为：
+
+- **已装** → 安装照常；`/usr/local/bin` 会加到命令的 PATH 前面，所以你直接调 `node` / `php` 就能拿到用户在组件页选的版本
+- **未装** → 安装被拦下，提示「缺少 Node.js，请先在组件页安装」，用户装完再试
+- **`optional` 未装** → 只写一条提示，安装继续
+
+**为什么走组件而不是自己装**：
+
+1. 复用组件系统的镜像源、重试与自愈逻辑（容器内 `dpkg` 中断自愈这些坑宿主已经处理过）
+2. **用户切换组件默认版本时，插件自动跟着用新版本**——自己装的是固定版本，切了不会变
+3. 用户在组件页能看到「谁装了什么」，而不是插件背地里改容器
+
+> 第三方依赖（`ffmpeg`、某个 pip 包等）**不在组件列表里就写进 `installSteps` 自己装**。
+> `requires` 只认上面那 19 个——这样宿主能保证它们的安装质量，而任意软件包做不到。
 
 ### 扩展点
 

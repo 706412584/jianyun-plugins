@@ -21,6 +21,15 @@ import zipfile
 
 ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 REQUIRED = ("id", "name", "version", "description", "publisher")
+
+# `requires[].component` 允许的值：App 侧 ComponentFamily 枚举的 id 全集。
+# 两边必须同步——App 只认这些，写别的会在安装时被拦下。
+COMPONENT_IDS = frozenset({
+    "php", "python", "node", "go", "jdk", "gradle", "rust",
+    "android_sdk", "android_ndk",
+    "mariadb", "postgresql", "nginx", "redis", "memcached",
+    "container", "phpmyadmin", "adminer", "composer", "maven",
+})
 MAX_ZIP_BYTES = 20 * 1024 * 1024
 MAX_UNCOMPRESSED_BYTES = 100 * 1024 * 1024
 MAX_ENTRIES = 2000
@@ -102,6 +111,28 @@ def check_manifest(manifest, report):
         v = manifest.get(key, [])
         if not isinstance(v, list):
             report.error(f"{key} 必须是数组")
+
+    # 组件依赖：只认宿主内置的组件 id。写错一个字母会在用户装机时才发现
+    # （App 侧把不认识的 id 当未满足并阻断安装），不如在投稿校验就拦下。
+    requires = manifest.get("requires", [])
+    if requires and not isinstance(requires, list):
+        report.error("requires 必须是数组")
+    elif isinstance(requires, list):
+        for i, item in enumerate(requires):
+            if not isinstance(item, dict):
+                report.error(f"requires[{i}] 必须是对象")
+                continue
+            comp = str(item.get("component", "")).strip()
+            if not comp:
+                report.error(f"requires[{i}] 缺少 component")
+            elif comp not in COMPONENT_IDS:
+                report.error(
+                    f"requires[{i}] 的 component 不支持：{comp!r}。"
+                    f"可选：{', '.join(sorted(COMPONENT_IDS))}"
+                )
+            minv = item.get("minVersion")
+            if minv is not None and not re.match(r"^\d+(\.\d+)*", str(minv).strip()):
+                report.error(f"requires[{i}] 的 minVersion 不合法：{minv!r}。要求数字开头，如 3.11")
 
     # 清单里的命令字段同样会在容器里以 root 执行，必须与 payload/ 里的脚本同等待遇。
     # 只扫 payload/ 是不够的：installSteps 写 `rm -rf /` 的包能一路通过校验并自动发布。
