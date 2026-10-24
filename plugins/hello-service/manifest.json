@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "id": "hello-service",
   "name": "示例服务",
+  "version": "1.1.0",
   "description": "最小的常驻服务插件：起一个 HTTP 服务，用来验证市场安装、启动与自动启动流程。",
-  "version": "1.0.0",
   "publisher": "706412584",
   "homepage": "https://github.com/706412584/jianyun-plugins",
   "category": "示例",
@@ -15,7 +15,7 @@
     "NETWORK"
   ],
   "launchType": "service",
-  "servicePort": 18080,
+  "servicePort": 18081,
   "servicePath": "/",
   "installSteps": [
     "mkdir -p \"$JY_PLUGIN_DATA\"",
@@ -30,14 +30,14 @@
       "key": "GREETING",
       "label": "问候语",
       "type": "text",
-      "default": "hello from jianyun",
+      "default": "hello from jianyun 1.1.0",
       "hint": "服务返回的文本"
     }
   ],
   "endpoints": [
     {
       "label": "HTTP",
-      "url": "http://127.0.0.1:18080/",
+      "url": "http://127.0.0.1:18081/",
       "hint": "浏览器打开即可看到问候语"
     }
   ],
