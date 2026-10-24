@@ -41,6 +41,26 @@ def sha256_of(path):
     return h.hexdigest()
 
 
+def plugin_updated_at(plugin_dir):
+    """插件目录最后一次提交的时间（ISO 8601 UTC），查不到返回空串。
+
+    为什么用 git 提交时间而不是「打包时的当前时间」：后者每次重跑 CI 都会变，
+    index.json 会被无谓地改一遍（并且每次提交都触发下游的镜像同步）。
+    提交时间是稳定的事实，重跑得到同一个值。
+
+    CI 里需要 fetch-depth: 0；浅克隆时 git log 只回溯一个提交，
+    会让所有插件的时间都显示成最新那次，所以查不到更早历史时宁可不报时间。
+    """
+    try:
+        out = subprocess.run(
+            ["git", "log", "-1", "--format=%cI", "--", os.path.relpath(plugin_dir, ROOT)],
+            capture_output=True, text=True, cwd=ROOT, timeout=20,
+        )
+        return out.stdout.strip() if out.returncode == 0 else ""
+    except Exception:
+        return ""
+
+
 def parse_version(v):
     """把 1.2.3 拆成 (1,2,3)。非数字段按 0 处理并保留原文用于比较。"""
     parts = []
@@ -293,6 +313,11 @@ def main():
             "sizeBytes": os.path.getsize(pkg_path),
             "trust": trust,
         }
+        # 更新时间：详情页用它回答「这插件还在维护吗」。查不到就不写字段，
+        # 避免用假时间误导。
+        updated = plugin_updated_at(plugin_dir)
+        if updated:
+            entry["updatedAt"] = updated
         if manifest.get("minAppVersionCode"):
             entry["minAppVersionCode"] = int(manifest["minAppVersionCode"])
 

@@ -34,6 +34,49 @@ MAX_ZIP_BYTES = 20 * 1024 * 1024
 MAX_UNCOMPRESSED_BYTES = 100 * 1024 * 1024
 MAX_ENTRIES = 2000
 
+# index.json 的位置（相对仓库根）。校验时用它查「该 id 已发布的版本」，
+# 挡住重复投稿与版本回退。找不到文件就跳过这项检查——本地自检时
+# 可能不在仓库根跑，不该因此报错。
+INDEX_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "index.json")
+
+
+def load_published_versions(index_path=INDEX_FILE):
+    """读 index.json，返回 {插件 id: 已发布版本}。读不到返回空表。"""
+    try:
+        with open(index_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return {}
+    out = {}
+    for p in data.get("plugins", []) or []:
+        pid = str(p.get("id", "")).strip()
+        ver = str(p.get("version", "")).strip()
+        if pid and ver:
+            out[pid] = ver
+    return out
+
+
+def _ver_tuple(v):
+    """版本号取数字段，与 App 侧 PluginVersions 的规则一致（`.`/`-`/`+` 切段）。"""
+    segs = re.split(r"[.\-+]", str(v).strip())
+    out = []
+    for s in segs:
+        m = re.match(r"^(\d+)", s.strip())
+        out.append(int(m.group(1)) if m else 0)
+    return out
+
+
+def version_is_newer(candidate, current):
+    """[candidate] 是否严格大于 [current]（不做语义化版本完整实现）。"""
+    a, b = _ver_tuple(candidate), _ver_tuple(current)
+    n = max(len(a), len(b))
+    for i in range(n):
+        x = a[i] if i < len(a) else 0
+        y = b[i] if i < len(b) else 0
+        if x != y:
+            return x > y
+    return False
+
 # 二进制魔数：插件包里的 payload 只允许脚本，不允许编译产物。
 # 理由：二进制无法审阅，且容器架构与宿主不同，放进去多半也跑不起来。
 BINARY_MAGIC = (
@@ -79,8 +122,11 @@ def load_manifest(text):
     return json.loads(text)
 
 
-def check_manifest(manifest, report):
-    """字段级检查。返回 False 表示不必继续。"""
+def check_manifest(manifest, report, published=None):
+    """字段级检查。返回 False 表示不必继续。
+
+    [published] 是 {id: 已发布版本}；给了就检查版本单调性。
+    """
     for key in REQUIRED:
         if not str(manifest.get(key, "")).strip():
             report.error(f"manifest 缺少必填字段：{key}")
@@ -94,6 +140,17 @@ def check_manifest(manifest, report):
     version = str(manifest.get("version", "")).strip()
     if version and not re.match(r"^\d+(\.\d+)*", version):
         report.error(f"version 不合法：{version!r}。要求数字开头，如 1.2.0")
+
+    # 版本单调性：必须**大于**已发布版本。
+    # 挡住两种投稿：① 与已发布同版本（重复投稿，合并后会覆盖）；② 版本回退。
+    # App 内投稿有本地预检拦，但网页表单 / Issue 投稿绕过 App，只能在这里拦。
+    if published and pid and version and pid in published:
+        cur = published[pid]
+        if not version_is_newer(version, cur):
+            report.error(
+                f"版本必须大于已发布的 {cur}（当前投稿是 {version}）。"
+                f"若只是改了内容，请提升版本号（如 {cur} → 下一版）"
+            )
 
     port = manifest.get("servicePort", 0)
     if port and (not isinstance(port, int) or not (1 <= port <= 65535)):
@@ -225,7 +282,7 @@ def validate_dir(path):
     if not isinstance(manifest, dict):
         report.error("manifest.json 顶层必须是对象")
         return report, None
-    if not check_manifest(manifest, report):
+    if not check_manifest(manifest, report, load_published_versions()):
         return report, manifest
 
     payload_dir = os.path.join(path, "payload")
@@ -324,7 +381,7 @@ def validate_zip(zip_path):
         if not isinstance(manifest, dict):
             report.error("manifest.json 顶层必须是对象")
             return report, None
-        if not check_manifest(manifest, report):
+        if not check_manifest(manifest, report, load_published_versions()):
             return report, manifest
 
         texts = []

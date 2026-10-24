@@ -25,6 +25,9 @@ jobs:
         with:
           # 需要提交更新后的 index.json
           token: ${{ secrets.GITHUB_TOKEN }}
+          # 全量历史：index.json 的「更新时间」取插件目录最后一次提交的时间，
+          # 浅克隆（默认 depth=1）查不到，会让所有插件的时间都变成「刚刚」
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
