@@ -13,6 +13,10 @@ name: 同步到 Gitee 镜像
 #   - 在 Gitee 建好同名仓库，owner 填进下方 GITEE_OWNER
 #   - 仓库 Secrets 里加 GITEE_TOKEN（Gitee 私人令牌，勾 projects 权限）
 on:
+  # 直推时同步一次：文档、README 这类改动不会触发「打包并发布」
+  # （它只监听 plugins/** 与 tools/**），少了这条纯文档改动永远同步不到 Gitee。
+  push:
+    branches: [master]
   # build-index 更新完 index.json 与 Release 后再同步，避免镜像拿到半旧状态
   workflow_run:
     workflows: ["打包并发布"]
@@ -34,7 +38,12 @@ jobs:
   mirror:
     runs-on: ubuntu-latest
     # workflow_run 触发时，上游失败就不要同步半截状态
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    # workflow_run 触发时，上游失败就不要同步半截状态；
+    # push / workflow_dispatch 没有 workflow_run 字段（为 null），必须单独放行，
+    # 否则这两条路径会被这个条件整个跳过
+    if: >-
+      github.event_name != 'workflow_run'
+      || github.event.workflow_run.conclusion == 'success'
     steps:
       - uses: actions/checkout@v4
         with:
