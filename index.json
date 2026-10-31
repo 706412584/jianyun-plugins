@@ -2,27 +2,6 @@
   "schemaVersion": 1,
   "plugins": [
     {
-      "id": "demo-clock",
-      "name": "演示时钟",
-      "description": "审核流程演示用：起一个显示当前时间的 HTTP 小页，无副作用。",
-      "version": "0.1.0",
-      "publisher": "amwu126",
-      "category": "演示",
-      "homepage": "",
-      "architectures": [
-        "arm64",
-        "x86_64"
-      ],
-      "permissions": [
-        "NETWORK"
-      ],
-      "downloadUrl": "https://github.com/706412584/jianyun-plugins/releases/download/plugin/demo-clock-0.1.0/demo-clock-0.1.0.plugin",
-      "sha256": "d2a6e97ae478ac44f51a64ec9760096149904b529b8f64969d33405a66f2fbe6",
-      "sizeBytes": 867,
-      "trust": "community",
-      "updatedAt": "2026-11-01T01:39:49+08:00"
-    },
-    {
       "id": "hello-service",
       "name": "示例服务",
       "description": "最小的常驻服务插件：起一个 HTTP 服务，用来验证市场安装、启动与自动启动流程。",
