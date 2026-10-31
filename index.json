@@ -5,7 +5,7 @@
       "id": "hello-service",
       "name": "示例服务",
       "description": "最小的常驻服务插件：起一个 HTTP 服务，用来验证市场安装、启动与自动启动流程。",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "publisher": "706412584",
       "category": "示例",
       "homepage": "https://github.com/706412584/jianyun-plugins",
@@ -16,11 +16,11 @@
       "permissions": [
         "NETWORK"
       ],
-      "downloadUrl": "https://github.com/706412584/jianyun-plugins/releases/download/plugin/hello-service-1.1.0/hello-service-1.1.0.plugin",
-      "sha256": "d8228ffa1d8ac759471cf86798cf717ff83aec51998afac87b42a636163585a2",
-      "sizeBytes": 1197,
+      "downloadUrl": "https://github.com/706412584/jianyun-plugins/releases/download/plugin/hello-service-1.1.1/hello-service-1.1.1.plugin",
+      "sha256": "cf3e21d116e807c49e7ef49a1b8040471211e0ec2ed7b173973eaef57ec7a550",
+      "sizeBytes": 1196,
       "trust": "verified",
-      "updatedAt": "2026-10-25T00:50:50+08:00"
+      "updatedAt": "2026-10-31T22:22:45+08:00"
     }
   ]
 }
