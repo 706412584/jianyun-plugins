@@ -230,8 +230,10 @@ def main():
     uploads = []
     changed = False
 
+    # plugins/ 目录可能整个不存在：最后一个插件被下架后，GitHub 不跟踪空目录，
+    # 该目录会从仓库消失。此时应视为「没有任何插件」，而不是让 CI 崩掉。
     ids = sorted(
-        d for d in os.listdir(PLUGINS_DIR)
+        d for d in (os.listdir(PLUGINS_DIR) if os.path.isdir(PLUGINS_DIR) else [])
         if os.path.isdir(os.path.join(PLUGINS_DIR, d))
         and os.path.isfile(os.path.join(PLUGINS_DIR, d, "manifest.json"))
     )
