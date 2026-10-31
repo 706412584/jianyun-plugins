@@ -1,13 +1,4 @@
 # 维护者人工确认过的插件（插件 id，小写，一行一个）。
-#
-# 为什么单独一份名单：manifest 里的 publisher 是投稿者**自己填的字符串**，
-# 任何人写 `"publisher": "706412584"` 都能命中 trusted-publishers.txt。
-# 所以「已验证」必须由人来签发——把插件 id 加进这个文件，就是签发。
-#
-# 加之前请自己打开 plugins/<id>/manifest.json 看一遍：
-# - installSteps / launchCommand 里有没有往外发数据、读凭据的命令；
-# - 有没有 `curl … | sh` 这类「运行时再决定干什么」的写法；
-# - payload 里的脚本是不是与描述相符。
-#
-# 这个文件只能通过 PR 由维护者合并来修改（Issue 投稿路径改不到它）。
+# 由 App 内审核页维护；加入即视为维护者看过插件内容。
 hello-service
+demo-clock
