@@ -1,0 +1,4 @@
+<!doctype html><meta charset="utf-8"><title>演示时钟</title>
+<body style="font-family:sans-serif;text-align:center;padding-top:4em">
+<h1 id="t">--:--:--</h1>
+<script>setInterval(()=>document.getElementById('t').textContent=new Date().toLocaleTimeString(),500)</script>
