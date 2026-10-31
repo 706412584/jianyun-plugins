@@ -345,6 +345,18 @@ def main():
         uploads.append(f"{pkg_path}\t{tag}")
         print(f"打包 {pid} v{version} → {os.path.basename(pkg_path)} ({entry['sizeBytes']} B, {trust})")
 
+    # 对账删除：仓库里已经没有 plugins/<id>/ 目录的条目要从索引里剔除。
+    # 少了这一步，下架（删目录）只会让 CI 报「没有需要更新的插件」，
+    # index.json 里的旧条目永远留着，市场继续显示已下架的插件。
+    # 只在全量运行时做：--only 是局部修复，不该顺带删别的条目。
+    if not args.only:
+        present = set(ids)
+        gone = [pid for pid in by_id if pid not in present]
+        for pid in gone:
+            del by_id[pid]
+            changed = True
+            print(f"移除 {pid}：仓库里已没有该插件目录（下架）")
+
     if not changed:
         print("没有需要更新的插件")
         return 0
