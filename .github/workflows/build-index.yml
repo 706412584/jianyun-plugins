@@ -116,4 +116,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.json
           git commit -m "chore(index): 更新插件索引 [skip ci]"
+          # 运行期间远端可能被别的提交推进（并发触发/人工提交），直接 push 会
+          # non-fast-forward 被拒。先 rebase 到最新再推；确实冲突时宁可失败让人看，
+          # 也不强推覆盖历史。
+          git pull --rebase origin master
           git push
