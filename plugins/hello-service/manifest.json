@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "hello-service",
   "name": "示例服务",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "最小的常驻服务插件：起一个 HTTP 服务，用来验证市场安装、启动与自动启动流程。",
   "publisher": "706412584",
   "homepage": "https://github.com/706412584/jianyun-plugins",
