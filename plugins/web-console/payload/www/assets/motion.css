@@ -1,0 +1,66 @@
+/* ============================================================
+   第 3 层 · 动效 Token 与特效（动效同样 Token 化）
+   ============================================================ */
+:root{
+  --dur-1:100ms; --dur-2:200ms; --dur-3:300ms; --dur-4:500ms;
+  --ease-out:cubic-bezier(.2,0,0,1);
+  --ease-io:cubic-bezier(.4,0,.2,1);
+  --ease-spring:cubic-bezier(.34,1.56,.64,1);
+}
+.btn,.cell,.seg button{position:relative;overflow:hidden}
+.ripple{position:absolute;border-radius:50%;background:currentColor;opacity:.25;transform:scale(0);animation:rip .55s var(--ease-out) forwards;pointer-events:none}
+@keyframes rip{to{transform:scale(1);opacity:0}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes popIn{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:scale(1)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:none}}
+.anim-fadeup{animation:fadeUp var(--dur-3) var(--ease-out) both}
+.anim-pop{animation:popIn var(--dur-3) var(--ease-spring) both}
+.anim-slide{animation:slideIn var(--dur-3) var(--ease-io) both}
+.stag>*{opacity:0;animation:fadeUp var(--dur-3) var(--ease-out) forwards}
+.stag>*:nth-child(1){animation-delay:0ms}.stag>*:nth-child(2){animation-delay:70ms}.stag>*:nth-child(3){animation-delay:140ms}.stag>*:nth-child(4){animation-delay:210ms}
+.glass-stage{/* skin-exempt: 毛玻璃的流光彩底是材质本体，不属于皮肤 */
+  background:linear-gradient(120deg,#5b7cfa,#8b5cf6,#d946ef,#f59e0b);background-size:220% 220%;animation:bgmove 7s ease infinite;border-radius:var(--r-lg);padding:18px}
+@keyframes bgmove{0%,100%{background-position:0% 40%}50%{background-position:100% 60%}}
+.glass{/* skin-exempt: 半透明白边与白字是材质本体 */
+  backdrop-filter:blur(14px) saturate(160%);-webkit-backdrop-filter:blur(14px) saturate(160%);background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.4);border-radius:var(--r-md);padding:14px;color:#fff;font-size:13px;font-weight:600}
+.gbord{position:relative;overflow:hidden;border-radius:var(--r-md)}
+.gbord::before{content:'';position:absolute;inset:-60%;background:conic-gradient(from 0deg,transparent 0 290deg,var(--primary) 330deg,var(--grad-b) 360deg);animation:spinb 3s linear infinite}
+.gbord .gb-in{position:relative;z-index:1;background:var(--card);border-radius:calc(var(--r-md) - 1px);margin:1.5px;padding:12px 14px}
+@keyframes spinb{to{transform:rotate(360deg)}}
+.glow-btn{animation:glowp 2.2s ease-in-out infinite}
+@keyframes glowp{0%,100%{box-shadow:var(--glow)}50%{box-shadow:0 0 24px 6px var(--ring)}}
+.mq{overflow:hidden;white-space:nowrap;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--card-2);padding:8px 0}
+.mq>span{display:inline-block;padding-left:100%;animation:mqrun 9s linear infinite;font-size:13px;color:var(--text-sec)}
+@keyframes mqrun{to{transform:translateX(-100%)}}
+.gtxt{font-size:24px;font-weight:800;background:linear-gradient(90deg,var(--primary),var(--grad-b),var(--primary));background-size:200%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:gt 4s linear infinite}
+@keyframes gt{to{background-position:-200%}}
+.indet{height:6px;background:var(--divider);border-radius:var(--r-full);overflow:hidden;position:relative}
+.indet::after{content:'';position:absolute;top:0;left:-40%;width:40%;height:100%;background:var(--primary);border-radius:inherit;animation:ind 1.3s var(--ease-io) infinite}
+@keyframes ind{to{left:110%}}
+.ringload{width:34px;height:34px;border-radius:50%;border:3px dashed var(--primary);animation:spinb 2.4s linear infinite}
+.dots{display:inline-flex;gap:4px;align-items:center;background:var(--card-2);border:1px solid var(--border);padding:9px 12px;border-radius:var(--r-full)}
+.dots i{width:6px;height:6px;border-radius:50%;background:var(--text-disabled);animation:dotb 1s var(--ease-io) infinite}
+.dots i:nth-child(2){animation-delay:.15s}.dots i:nth-child(3){animation-delay:.3s}
+@keyframes dotb{0%,60%,100%{transform:none;opacity:.5}30%{transform:translateY(-5px);opacity:1}}
+.shake{animation:shk .45s var(--ease-io)}
+@keyframes shk{0%,100%{transform:none}20%{transform:translateX(-6px)}40%{transform:translateX(5px)}60%{transform:translateX(-4px)}80%{transform:translateX(2px)}}
+.toggle::after{transition:transform .3s var(--ease-out),width .15s ease}
+.toggle:active::after{width:26px}
+.toggle.sm:active::after{width:19px}
+.card-lift{transition:transform var(--dur-2) var(--ease-out),box-shadow var(--dur-2)}
+.card-lift:hover{transform:translateY(-3px)}
+.slidebox{position:relative;overflow:hidden;border:1px solid var(--border);border-radius:var(--r-md);height:96px;background:var(--card-2)}
+.slidebox .sc{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;font-size:13px;color:var(--text-sec);transition:transform var(--dur-3) var(--ease-io),opacity var(--dur-3)}
+.sc.off-l{transform:translateX(-100%);opacity:0}
+.sc.off-r{transform:translateX(100%);opacity:0}
+.sc.cur{transform:none;opacity:1}
+
+/* 减弱动态效果：非必要动画全部关闭，只保留颜色/透明度这类无位移过渡 */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;
+    scroll-behavior:auto !important;
+  }
+}

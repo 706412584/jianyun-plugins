@@ -1,0 +1,265 @@
+/* 简云网页控制台 · 布局层
+   设计系统的五件套在 assets/ 下（tokens/components/motion/extensions/behavior），
+   这里只写页面骨架与站点卡片这类「这一个项目专有」的布局。
+   规则：颜色/圆角/间距/动效一律引用 Token，不出现固定色值与裸毫秒。 */
+
+/* ---------------- 顶栏 ---------------- */
+
+.appbar{display:flex;align-items:center;gap:var(--s-5);padding:var(--s-3) var(--s-4);
+  background:var(--card);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20}
+.brand{display:flex;align-items:baseline;gap:var(--s-2);font-size:16px;font-weight:700;
+  white-space:nowrap;letter-spacing:.2px}
+.brand small{font-size:12px;font-weight:400;color:var(--text-sec)}
+.nav{display:flex;gap:var(--s-1);flex:1;overflow-x:auto}
+.nav a{padding:7px 14px;border-radius:var(--r-sm);font-size:14px;color:var(--text-sec);
+  text-decoration:none;white-space:nowrap;cursor:pointer;transition:all var(--dur-2) var(--ease-out)}
+.nav a:hover{background:var(--card-2);color:var(--text)}
+.nav a.on{background:var(--primary-soft);color:var(--primary);font-weight:600}
+.appbar-right{display:flex;align-items:center;gap:var(--s-3)}
+.conn{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-sec);white-space:nowrap}
+.skin-btn{display:flex;align-items:center;gap:6px;font-size:12.5px}
+
+/* ---------------- 内容区 ---------------- */
+
+.main{padding:var(--s-5) var(--s-4) var(--s-6);max-width:1280px;margin:0 auto}
+.view-head{display:flex;align-items:center;gap:var(--s-3);margin-bottom:var(--s-5);flex-wrap:wrap}
+.view-head h1{margin:0;font-size:22px;font-weight:700;letter-spacing:-.2px}
+.view-head .count{font-size:13px;color:var(--text-sec)}
+.view-head .spacer{flex:1}
+.wrap-note{font-size:12px;color:var(--text-sec)}
+
+/* ---------------- 概览 ---------------- */
+
+.overview{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);
+  padding:var(--s-4) var(--s-5);margin-bottom:var(--s-5);box-shadow:var(--shadow)}
+.overview .stat-grid{grid-template-columns:repeat(4,1fr)}
+.overview .stat-val{font-size:22px;color:var(--text)}
+.overview .stat-val.accent{color:var(--primary)}
+.overview .stat-val.warn{color:var(--warning)}
+
+/* ---------------- 站点卡片网格 ---------------- */
+
+.grid{display:grid;gap:var(--s-4);grid-template-columns:repeat(3,minmax(0,1fr))}
+.grid .card{margin-bottom:0}
+.site{display:flex;flex-direction:column;gap:var(--s-3);position:relative;overflow:hidden}
+.site::before{content:'';position:absolute;inset:0 0 auto 0;height:3px;
+  background:linear-gradient(90deg,var(--grad-a),var(--grad-b));opacity:.9}
+.site.off::before{background:var(--text-disabled);opacity:.5}
+.site-top{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s-3)}
+.site-id{display:flex;align-items:center;gap:var(--s-3);min-width:0}
+.site-name{font-size:15px;font-weight:700;color:var(--text);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.site-sub{font-size:12px;color:var(--text-sec);margin-top:2px}
+.site-url{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--primary);
+  text-decoration:none;background:var(--primary-soft);padding:8px 12px;border-radius:var(--r-sm);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:background var(--dur-2) var(--ease-out)}
+.site-url:hover{background:var(--primary-soft-hover)}
+.site-url svg{width:14px;height:14px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:2}
+.site-foot{display:flex;gap:var(--s-2);margin-top:auto;flex-wrap:wrap}
+.site.off .site-name{color:var(--text-sec)}
+.site.off .site-url{background:var(--card-2);color:var(--text-disabled)}
+
+/* ---------------- 骨架屏（首屏加载） ---------------- */
+
+.skl-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);padding:var(--s-4)}
+.skl-card .skl{height:14px;margin-bottom:var(--s-3)}
+
+/* ---------------- 表单（建站弹层） ---------------- */
+
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:var(--s-3)}
+.seg-wrap{margin-bottom:var(--s-3)}
+.db-box{background:var(--card-2);border:1px solid var(--border);border-radius:var(--r-sm);
+  padding:var(--s-3) var(--s-4);margin-bottom:var(--s-3)}
+.db-head{display:flex;align-items:center;justify-content:space-between;gap:var(--s-3)}
+.db-title{font-size:13px;font-weight:600;color:var(--text)}
+.db-sub{font-size:11.5px;color:var(--text-sec);margin-top:2px}
+.form-actions{display:flex;gap:var(--s-2);margin-top:var(--s-4)}
+.form-actions .btn-outline-gray{flex:1}
+.form-actions .btn-primary{flex:2}
+
+/* ---------------- 任务进度（异步操作） ---------------- */
+
+.jobbar{margin-bottom:var(--s-4)}
+.jobbar .banner{align-items:center}
+.jobbar .spin{flex-shrink:0}
+
+/* ---------------- 移动端底部导航 ---------------- */
+
+.mobilebar{display:none}
+
+/* ============================================================
+   断点：≥1200 三列 / 1024–1200 两列 / 768–1024 两列 / <768 单列 + 底部 Tab
+   ============================================================ */
+@media (max-width:1200px){
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:768px){
+  .appbar{padding:var(--s-3);gap:var(--s-3)}
+  .nav{display:none}
+  .brand small{display:none}
+  .conn span{display:none}
+  .main{padding:var(--s-4) var(--s-4) 96px}
+  .view-head h1{font-size:19px}
+  .view-head .count{display:none}
+  .grid{grid-template-columns:minmax(0,1fr)}
+  .overview{padding:var(--s-4)}
+  .overview .stat-grid{grid-template-columns:repeat(2,1fr);gap:var(--s-4)}
+  .form-row{grid-template-columns:1fr}
+
+  .mobilebar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:40;
+    background:var(--card);border-top:1px solid var(--border);border-radius:0;
+    padding-bottom:env(safe-area-inset-bottom)}
+  .mobilebar .nav-item{padding:var(--s-2) 0 var(--s-3)}
+  .fab{display:flex}
+
+  /* 输入框是 sticky 在视口底部的，而底部 Tab 是 fixed——不抬高就会被盖住，整页看不到输入框 */
+  .chat-input{bottom:calc(56px + env(safe-area-inset-bottom))}
+}
+
+/* 桌面端把建站弹层居中成卡片（组件库默认是底部 sheet） */
+@media (min-width:769px){
+  .mask.sheet-mask{align-items:center}
+  .mask.sheet-mask .sheet{border-radius:var(--r-lg);max-width:460px;padding:var(--s-5)}
+  .mask.sheet-mask .sheet-handle{display:none}
+  .mask.sheet-mask .sheet-title{font-size:16px;font-weight:700;color:var(--text);text-align:left;margin-bottom:var(--s-4)}
+}
+
+/* 悬浮按钮默认不显示（窄屏媒体查询里打开） */
+.fab{display:none}
+
+/* ---------------- 登录页 ---------------- */
+
+.login-body{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:var(--s-4)}
+.login-card{width:100%;max-width:360px;background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r-lg);padding:var(--s-6) var(--s-5);box-shadow:var(--shadow-hover)}
+.login-brand{display:flex;align-items:center;gap:var(--s-2);color:var(--primary);
+  font-weight:700;margin-bottom:var(--s-3)}
+.login-card h1{margin:0 0 var(--s-2);font-size:20px}
+.login-card .lead{margin:0 0 var(--s-5);font-size:13px;color:var(--text-sec)}
+.login-error{color:var(--danger);font-size:12.5px;margin:var(--s-3) 0 0}
+
+/* ---------------- 皮肤下拉 ---------------- */
+
+.skin-wrap{position:relative}
+.skin-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:60;min-width:132px;
+  background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);
+  box-shadow:var(--shadow-hover);padding:var(--s-1);display:none}
+.skin-menu.on{display:block;animation:pop var(--dur-2) var(--ease-out)}
+.skin-menu button{display:block;width:100%;text-align:left;padding:8px 12px;border:none;background:none;
+  font-size:13px;color:var(--text);cursor:pointer;font-family:var(--font);
+  border-radius:calc(var(--r-sm) - 2px);transition:background var(--dur-1) var(--ease-out)}
+.skin-menu button:hover{background:var(--card-2)}
+.skin-menu button.active{background:var(--primary-soft);color:var(--primary);font-weight:600}
+
+/* ---------------- 组件卡片 ---------------- */
+
+.comp-head{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s-3)}
+.comp-tags{display:flex;flex-wrap:wrap;gap:var(--s-2);margin-top:var(--s-3)}
+.comp-foot{display:flex;gap:var(--s-2);margin-top:auto;padding-top:var(--s-3);flex-wrap:wrap}
+
+/* ---------------- 插件卡片 ---------------- */
+
+.plugin-foot{display:flex;gap:var(--s-2);margin-top:auto;padding-top:var(--s-3);flex-wrap:wrap}
+
+/* ---------------- 对话 ---------------- */
+
+.chat-list{display:flex;flex-direction:column;gap:var(--s-3);min-height:180px}
+.bubble{max-width:min(720px,90%);padding:var(--s-3) var(--s-4);border-radius:var(--r-md);
+  font-size:14px;line-height:1.65;white-space:pre-wrap;word-break:break-word}
+.bubble.user{align-self:flex-end;background:var(--primary);color:var(--on-primary);border-bottom-right-radius:var(--s-1)}
+.bubble.assistant{align-self:flex-start;background:var(--card);border:1px solid var(--border);border-bottom-left-radius:var(--s-1)}
+.bubble.err{border-color:var(--danger);color:var(--danger)}
+.bubble .reason{font-size:12.5px;color:var(--text-sec);border-left:2px solid var(--divider);
+  padding-left:var(--s-2);margin-bottom:var(--s-2);white-space:pre-wrap}
+.bubble .meta{font-size:11px;color:var(--text-disabled);margin-top:var(--s-2)}
+
+/* ---------------- 工具调用卡 ---------------- */
+
+.tool-card{border:1px solid var(--border);border-radius:var(--r-sm);background:var(--card-2);
+  padding:var(--s-2) var(--s-3);margin-bottom:var(--s-2);font-size:12.5px}
+.tool-card.run{border-color:var(--primary)}
+.tool-card.ok{border-color:var(--success)}
+.tool-card.bad{border-color:var(--danger)}
+.tool-head{display:flex;align-items:center;justify-content:space-between;gap:var(--s-2)}
+.tool-name{font-weight:600;font-family:var(--mono);color:var(--text)}
+.tool-state{font-size:11px;color:var(--text-sec)}
+.tool-card.run .tool-state{color:var(--primary)}
+.tool-card.ok .tool-state{color:var(--success)}
+.tool-card.bad .tool-state{color:var(--danger)}
+.tool-args{font-family:var(--mono);font-size:11.5px;color:var(--text-sec);
+  margin-top:var(--s-1);word-break:break-all}
+.tool-result{font-family:var(--mono);font-size:11.5px;color:var(--text-sec);
+  margin-top:var(--s-2);padding-top:var(--s-2);border-top:1px solid var(--divider);
+  white-space:pre-wrap;word-break:break-word;max-height:180px;overflow-y:auto}
+
+/* ---------------- 消息里的附件 ---------------- */
+
+.attach-row{display:flex;flex-wrap:wrap;gap:var(--s-2);margin-bottom:var(--s-2)}
+.attach-chip{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;padding:3px 9px;
+  border-radius:var(--r-full);background:var(--card-2);color:var(--text-sec);
+  cursor:pointer;text-decoration:none;transition:all var(--dur-2) var(--ease-out)}
+.attach-chip:hover{background:var(--primary-soft);color:var(--primary)}
+
+/* 图片缩略图：点开看大图 */
+.attach-thumbs{display:flex;flex-wrap:wrap;gap:var(--s-2);margin-bottom:var(--s-2)}
+.attach-thumb{width:96px;height:96px;object-fit:cover;border-radius:var(--r-sm);
+  border:1px solid var(--border);background:var(--card-2);cursor:pointer;
+  transition:border-color var(--dur-2) var(--ease-out)}
+.attach-thumb:hover{border-color:var(--primary)}
+
+.image-big{max-width:min(90vw,900px);max-height:82vh;border-radius:var(--r-md);
+  box-shadow:var(--shadow-hover);background:var(--card)}
+
+/* ---------------- 待发附件 ---------------- */
+
+.send-attach{display:flex;flex-wrap:wrap;gap:var(--s-2);margin-bottom:var(--s-2)}
+.send-chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:5px 10px;
+  border-radius:var(--r-full);background:var(--primary-soft);color:var(--primary)}
+.send-chip span{cursor:pointer;opacity:.7}
+.chat-input{display:flex;gap:var(--s-2);align-items:center;position:sticky;bottom:0;
+  background:var(--bg);padding:var(--s-3) 0;border-top:1px solid var(--border);margin-top:var(--s-4)}
+
+/* 代码块与行内 code：之前反引号是原样显示的 */
+.md-pre{background:var(--card-2);border:1px solid var(--border);border-radius:var(--r-sm);
+  padding:var(--s-2) var(--s-3);margin:var(--s-2) 0;font-family:var(--mono);font-size:12px;
+  line-height:1.55;overflow-x:auto;white-space:pre;color:var(--text)}
+.md-code{background:var(--card-2);border-radius:var(--r-sm);padding:1px 5px;
+  font-family:var(--mono);font-size:12.5px}
+
+/* ---------------- 思考过程折叠 ---------------- */
+
+.reason-wrap{margin-bottom:var(--s-2)}
+.reason-toggle{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--divider);
+  background:var(--card-2);color:var(--text-sec);font-size:11.5px;padding:3px 10px;
+  border-radius:var(--r-full);cursor:pointer;font-family:var(--font);
+  transition:all var(--dur-2) var(--ease-out)}
+.reason-toggle:hover{color:var(--text)}
+.reason-toggle::before{content:'▸';font-size:10px;transition:transform var(--dur-2) var(--ease-out)}
+.reason-toggle.open::before{transform:rotate(90deg)}
+.reason{font-size:12.5px;color:var(--text-sec);border-left:2px solid var(--divider);
+  padding-left:var(--s-2);margin-top:var(--s-2);white-space:pre-wrap;word-break:break-word;
+  max-height:340px;overflow-y:auto}
+
+/* ---------------- 对话上翻/下翻 ---------------- */
+
+.chat-nav{position:fixed;right:14px;bottom:112px;display:none;flex-direction:column;
+  gap:var(--s-2);z-index:30}
+.chat-nav.on{display:flex}
+.chat-nav-btn{width:42px;height:42px;padding:0;border-radius:50%;border:1px solid var(--border);
+  background:var(--card);box-shadow:var(--shadow);color:var(--text-sec);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all var(--dur-2) var(--ease-out)}
+.chat-nav-btn:hover{color:var(--primary);box-shadow:var(--shadow-hover)}
+.chat-nav-btn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2}
+
+/* 弹层内容可能很长（插件设置项多），必须能滚，否则底部按钮点不到 */
+.sheet{max-height:88vh;overflow-y:auto}
+
+/* ---------------- 探测日志 / 站点日志 ---------------- */
+
+.comp-log{margin-bottom:var(--s-4);border:1px solid var(--border);border-radius:var(--r-sm);
+  background:var(--card);padding:var(--s-2) var(--s-3)}
+.comp-log summary{font-size:12.5px;color:var(--text-sec);cursor:pointer}
+.log-pre{max-height:46vh;overflow:auto;margin:var(--s-2) 0 0;padding:var(--s-2);
+  background:var(--card-2);border-radius:var(--r-sm);font-family:var(--mono);
+  font-size:11.5px;line-height:1.5;white-space:pre-wrap;word-break:break-all;color:var(--text-sec)}

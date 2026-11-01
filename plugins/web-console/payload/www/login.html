@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN" data-skin="qinglan">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>登录 · 简云网页控制台</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/motion.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="login-body">
+  <form class="login-card" method="post" action="/login">
+    <div class="login-brand">简云</div>
+    <h1>网页控制台</h1>
+    <p class="lead">输入 App 的插件设置里填的「网页登录 key」</p>
+    <div class="field">
+      <div class="input-group">
+        <input type="password" name="key" placeholder="登录 key" autocomplete="current-password" autofocus>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-block" type="submit">进入</button>
+    <p class="login-error" id="login-error" hidden>key 不对，再试一次</p>
+  </form>
+  <script src="assets/behavior.js"></script>
+  <script>
+    if (new URLSearchParams(location.search).has('error')) {
+      document.getElementById('login-error').hidden = false;
+    }
+  </script>
+</body>
+</html>
