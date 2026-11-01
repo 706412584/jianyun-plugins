@@ -21,6 +21,26 @@
       "sizeBytes": 1196,
       "trust": "community",
       "updatedAt": "2026-11-01T05:08:17+08:00"
+    },
+    {
+      "id": "web-console",
+      "name": "网页控制台",
+      "description": "把手机上的简云能力搬到浏览器里：同一个后台查看站点、管理组件与插件、和 AI 对话。网页由本插件提供，真正的能力来自 App 的本地控制接口（只监听 127.0.0.1，不直接对外）。",
+      "version": "0.12.0",
+      "publisher": "",
+      "category": "TOOL",
+      "homepage": "",
+      "architectures": [
+        "ARM64"
+      ],
+      "permissions": [
+        "NETWORK"
+      ],
+      "downloadUrl": "https://github.com/706412584/jianyun-plugins/releases/download/plugin/web-console-0.12.0/web-console-0.12.0.plugin",
+      "sha256": "442e2cd7ac1bcad55864d6024bcbfdd1893897d93511240003e945c7a9a4d914",
+      "sizeBytes": 44376,
+      "trust": "community",
+      "updatedAt": "2026-11-01T14:28:13+08:00"
     }
   ]
 }
