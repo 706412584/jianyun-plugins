@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "id": "tiny-frpc",
+  "name": "frpc 内网穿透",
+  "description": "标准 frp 客户端（frpc 0.61.2）：把本机端口通过 frps 反向代理到公网，支持 TCP/HTTP/HTTPS/STCP，配置存 TOML，附状态页与实时日志。",
+  "version": "2.1.0",
+  "category": "TOOL",
+  "architectures": ["ARM64"],
+  "permissions": ["NETWORK"],
+  "launchType": "web",
+  "servicePort": 18899,
+  "servicePath": "/health",
+  "installSteps": ["/bin/sh \"${JY_PLUGIN_PAYLOAD:-$PWD/payload}/scripts/install.sh\""],
+  "uninstallSteps": ["/bin/sh \"${JY_PLUGIN_PAYLOAD:-$PWD/payload}/scripts/uninstall.sh\""],
+  "launchCommand": "frpc-serve",
+  "verifyCommand": "/bin/sh \"${JY_PLUGIN_PAYLOAD:-$PWD/payload}/scripts/verify.sh\"",
+  "settings": [
+    {"key": "SERVER_ADDR", "label": "frps 服务器地址", "type": "text", "default": "", "hint": "填 IP 或域名，如 1.2.3.4 或 frps.example.com", "group": "连接"},
+    {"key": "SERVER_PORT", "label": "服务端端口", "type": "number", "default": "7000", "min": 1, "max": 65535, "hint": "对应 frps.toml 里的 bindPort；宝塔 frp 管理器里叫「服务器端口」（例：15443）", "group": "连接"},
+    {"key": "AUTH_TOKEN", "label": "认证 Token", "type": "text", "default": "", "hint": "对应 frps.toml 里的 auth.token，必须完全一致，否则会被拒绝登录", "group": "连接"},
+    {"key": "TLS_ENABLE", "label": "启用 TLS 加密", "type": "toggle", "default": "true", "hint": "与 frps 的 transport.tls.force 配合；不确定就保持开启", "group": "连接"},
+    {"key": "USER", "label": "用户标识", "type": "text", "default": "", "hint": "可选，多客户端共用同一 token 时用来区分", "group": "连接"},
+    {"key": "PROXY_TYPE", "label": "代理类型", "type": "select", "default": "tcp", "options": [{"value": "tcp", "label": "TCP"}, {"value": "http", "label": "HTTP"}, {"value": "https", "label": "HTTPS"}, {"value": "stcp", "label": "STCP（点对点加密）"}], "group": "隧道"},
+    {"key": "PROXY_NAME", "label": "代理名", "type": "text", "default": "tcp-tunnel", "hint": "唯一标识，同一 frps 上不能重复，重名会被踢掉", "group": "隧道"},
+    {"key": "LOCAL_IP", "label": "本地地址", "type": "text", "default": "127.0.0.1", "hint": "要暴露的本机服务地址，本机服务填 127.0.0.1", "group": "隧道"},
+    {"key": "LOCAL_PORT", "label": "本地端口", "type": "number", "default": "22", "min": 1, "max": 65535, "hint": "要暴露的本机端口，如网站 10050、SSH 22", "group": "隧道"},
+    {"key": "REMOTE_PORT", "label": "远程端口", "type": "number", "default": "0", "min": 0, "max": 65535, "hint": "tcp 类型必填，frps 上对外开放的端口（需在宝塔放行）；http/https/stcp 填 0", "group": "隧道"},
+    {"key": "CUSTOM_DOMAINS", "label": "自定义域名", "type": "text", "default": "", "hint": "http/https 用，多个用逗号分隔，域名需解析到 frps 服务器", "group": "隧道"},
+    {"key": "SUBDOMAIN", "label": "子域名", "type": "text", "default": "", "hint": "http/https 用，如 web01 则访问 web01.你的域名", "group": "隧道"},
+    {"key": "SECRET_KEY", "label": "STCP 密钥", "type": "text", "default": "", "hint": "type=stcp 时必填，访客侧要填同样的值", "group": "隧道"},
+    {"key": "EXTRA_TOML", "label": "附加 TOML 片段", "type": "textarea", "default": "", "hint": "追加到自动生成配置末尾，用来加第二个代理或 frpc 支持的其他参数", "group": "高级"},
+    {"key": "AUTO_RECONNECT", "label": "断线自动重连", "type": "toggle", "default": "true", "hint": "隧道断开后按间隔自动重试", "group": "高级"},
+    {"key": "RECONNECT_DELAY", "label": "重连间隔（秒）", "type": "number", "default": "10", "min": 3, "max": 600, "group": "高级"}
+  ],
+  "endpoints": [
+    {"label": "状态页", "url": "http://127.0.0.1:18899/", "hint": "本机打开，看隧道状态与日志"},
+    {"label": "健康检查", "url": "http://127.0.0.1:18899/health", "hint": "返回 JSON 状态"}
+  ],
+  "actions": [
+    {"key": "status", "label": "查看隧道状态", "command": "/bin/sh bin/frpc-cli status", "description": "显示进程状态、当前配置与最近日志"},
+    {"key": "showconf", "label": "预览生成的配置", "command": "/bin/sh bin/frpc-cli show-conf", "description": "打印按当前设置生成的 frpc.toml，不发起连接"},
+    {"key": "verify", "label": "校验配置", "command": "/bin/sh bin/frpc-cli verify", "description": "生成配置并调用 frpc verify 做语法校验"},
+    {"key": "test", "label": "测试隧道连接", "command": "/bin/sh bin/frpc-cli test", "description": "前台跑 15 秒，打印与 frps 的登录结果并给结论"},
+    {"key": "restart", "label": "重启隧道", "command": "/bin/sh bin/frpc-cli restart", "description": "重建配置并重连 frps"}
+  ],
+  "infoCommand": "/bin/sh \"${JY_PLUGIN_PAYLOAD:-$PWD/payload}/scripts/info.sh\"",
+  "environment": {}
+}

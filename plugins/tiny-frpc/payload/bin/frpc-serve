@@ -1,0 +1,22 @@
+#!/bin/sh
+# frpc 隧道插件 —— 启动入口（前台 exec，宿主靠这个进程判存活）
+set -eu
+SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+TOOL_DIR="${JY_PLUGIN_DIR:-$(cd "$SELF_DIR/.." && pwd)}"
+PAYLOAD_DIR="${JY_PLUGIN_PAYLOAD:-$TOOL_DIR/payload}"
+
+PY=""
+for c in python3 python; do
+    command -v "$c" >/dev/null 2>&1 && { PY="$c"; break; }
+done
+if [ -z "$PY" ]; then
+    printf '错误：容器里没有 python3，请在简云「组件」里安装 Python 后重试。\n' >&2
+    exit 1
+fi
+
+if [ ! -f "$PAYLOAD_DIR/server/dashboard.py" ]; then
+    printf '错误：插件包缺少 payload/server/dashboard.py，请重新导入插件。\n' >&2
+    exit 1
+fi
+
+exec "$PY" "$PAYLOAD_DIR/server/dashboard.py"

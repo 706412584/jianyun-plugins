@@ -1,0 +1,22 @@
+#!/bin/sh
+# frpc 插件命令行：status / show-conf / verify / test / restart
+set -eu
+SELF="$0"
+case "$SELF" in
+    /*) ;;
+    *) [ -f "$SELF" ] || SELF="./$SELF" ;;
+esac
+SELF_DIR="$(cd "$(dirname "$SELF")" && pwd)"
+TOOL_DIR="${JY_PLUGIN_DIR:-$(cd "$SELF_DIR/.." && pwd)}"
+PAYLOAD_DIR="${JY_PLUGIN_PAYLOAD:-$TOOL_DIR/payload}"
+
+PY=""
+for c in python3 python; do
+    command -v "$c" >/dev/null 2>&1 && { PY="$c"; break; }
+done
+if [ -z "$PY" ]; then
+    printf '错误：容器里没有 python3，请在简云「组件」里安装 Python 后重试。\n' >&2
+    exit 1
+fi
+
+exec "$PY" "$PAYLOAD_DIR/server/cli.py" "$@"
