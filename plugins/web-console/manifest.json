@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "id": "web-console",
+  "name": "网页控制台",
+  "description": "把手机上的简云能力搬到浏览器里：同一个后台查看站点、管理组件与插件、和 AI 对话。网页由本插件提供，真正的能力来自 App 的本地控制接口（只监听 127.0.0.1，不直接对外）。",
+  "version": "0.12.0",
+  "category": "TOOL",
+  "architectures": [
+    "ARM64"
+  ],
+  "permissions": [
+    "NETWORK"
+  ],
+  "launchType": "web",
+  "servicePort": 21872,
+  "servicePath": "/health",
+  "launchCommand": "console-serve",
+  "installSteps": [
+    "/bin/sh \"${JY_PLUGIN_PAYLOAD:-$PWD/payload}/scripts/install.sh\""
+  ],
+  "uninstallSteps": [
+    "/bin/sh \"${JY_PLUGIN_PAYLOAD:-$PWD/payload}/scripts/uninstall.sh\""
+  ],
+  "verifyCommand": "/bin/sh \"${JY_PLUGIN_PAYLOAD:-$PWD/payload}/scripts/verify.sh\"",
+  "settings": [
+    {
+      "key": "CONSOLE_KEY",
+      "label": "网页登录 key",
+      "type": "text",
+      "default": "",
+      "hint": "打开网页时要输入的密码，自己设一个别人猜不到的",
+      "group": "网页控制台"
+    },
+    {
+      "key": "APP_TOKEN",
+      "label": "App 控制令牌",
+      "type": "text",
+      "default": "",
+      "hint": "App「设置 → 网页控制台」里显示的那串令牌，复制过来",
+      "group": "网页控制台"
+    },
+    {
+      "key": "APP_PORT",
+      "label": "App 接口端口",
+      "type": "number",
+      "default": "21871",
+      "hint": "与 App 设置页里的「App 接口端口」保持一致",
+      "group": "网页控制台"
+    }
+  ],
+  "environment": {}
+}

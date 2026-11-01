@@ -1,0 +1,29 @@
+#!/bin/sh
+# 网页控制台 · 启动入口（宿主「启动服务」执行它）
+#
+# 设置项由宿主以环境变量注入（CONSOLE_KEY / APP_TOKEN / APP_PORT），
+# 这里只负责找到 python 并把服务交给 server.py 前台运行——宿主靠这个进程判存活，
+# 丢到后台会被当成「进程立即退出」。
+set -eu
+
+TOOL_DIR="${JY_PLUGIN_DIR:-$(pwd)}"
+PKG_DIR="$TOOL_DIR/payload"
+DATA_DIR="${JY_PLUGIN_DATA:-$TOOL_DIR/data}"
+
+mkdir -p "$DATA_DIR/logs"
+
+if command -v python3 >/dev/null 2>&1; then
+    PY=python3
+elif command -v python >/dev/null 2>&1; then
+    PY=python
+else
+    echo "容器里没有 python3/python：请先在「组件」里安装 Python，再启动本插件"
+    exit 2
+fi
+
+if [ ! -f "$PKG_DIR/scripts/server.py" ]; then
+    echo "找不到 payload/scripts/server.py：重新导入一次本插件"
+    exit 3
+fi
+
+exec "$PY" "$PKG_DIR/scripts/server.py"
