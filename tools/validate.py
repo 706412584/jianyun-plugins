@@ -20,7 +20,9 @@ import sys
 import zipfile
 
 ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
-REQUIRED = ("id", "name", "version", "description", "publisher")
+# publisher 不在必填里：它只是作者自填的字符串，不构成身份证明（「已验证」由
+# 维护者在 .github/verified-plugins.txt 里签发）。强制必填只会挡住忘填的合法作者。
+REQUIRED = ("id", "name", "version", "description")
 
 # `requires[].component` 允许的值：App 侧 ComponentFamily 枚举的 id 全集。
 # 两边必须同步——App 只认这些，写别的会在安装时被拦下。
